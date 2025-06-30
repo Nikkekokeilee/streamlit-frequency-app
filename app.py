@@ -1,83 +1,42 @@
 import streamlit as st
 import pandas as pd
-import altair as alt
-import datetime
 import requests
+import plotly.express as px
 
-# Streamlit app configuration
-st.set_page_config(page_title="Statnett Frequency Monitor", layout="wide")
-st.title("📡 Real-Time Frequency Monitor from Statnett")
+st.title("Statnett Grid Frequency Viewer")
 
-# Sidebar controls
-st.sidebar.header("⚙️ Controls")
-minutes_back = st.sidebar.slider("History Length (minutes)", 1, 60, 10)
-refresh_interval = st.sidebar.slider("Refresh Interval (seconds)", 5, 120, 30)
+st.markdown("""
+Visualisoi sähköverkon taajuusdataa Statnettin rajapinnasta.
+""")
 
-# Auto-refresh
-st.markdown(f"<meta http-equiv='refresh' content='{refresh_interval}'>", unsafe_allow_html=True)
+API_URL = "https://driftsdata.statnett.no/restapi/Frequency/BySecond?From=2012-01-01"
 
-# Fetch frequency data from Statnett API
-@st.cache_data(ttl=refresh_interval)
-def fetch_statnett_frequency_data(minutes):
+@st.cache_data
+def fetch_data():
     try:
-        end_time = datetime.datetime.utcnow()
-        start_time = end_time - datetime.timedelta(minutes=minutes)
-        from_time_str = start_time.strftime("%Y-%m-%dT%H:%M:%SZ")
-        url = f"https://driftsdata.statnett.no/restapi/Frequency/BySecond?From={from_time_str}"
-        response = requests.get(url)
-        if response.status_code == 200:
-            data = response.json()
-            start_point = pd.to_datetime(data["StartPointUTC"])
-            interval_ms = data["PeriodTickMs"]
-            values = data["Measurements"]
-            timestamps = [start_point + pd.Timedelta(milliseconds=i * interval_ms) for i in range(len(values))]
-            df = pd.DataFrame({"Timestamp": timestamps, "FrequencyHz": values})
-            return df
-        else:
-            st.error(f"Failed to fetch data: {response.status_code}")
-            return pd.DataFrame(columns=["Timestamp", "FrequencyHz"])
+        response = requests.get(API_URL)
+        response.raise_for_status()
+        data = response.json()
+        df = pd.DataFrame(data)
+        df['TimeStamp'] = pd.to_datetime(df['TimeStamp'])
+        return df
     except Exception as e:
-        st.error(f"Error fetching data: {e}")
-        return pd.DataFrame(columns=["Timestamp", "FrequencyHz"])
+        st.error(f"Virhe datan haussa: {e}")
+        return pd.DataFrame()
 
-df = fetch_statnett_frequency_data(minutes_back)
+df = fetch_data()
 
 if not df.empty:
-    # Fixed y-axis range
-    y_min = 49.5
-    y_max = 50.5
+    st.success(f"Ladattu {len(df)} riviä dataa.")
+    start_date = st.date_input("Aloituspäivä", df['TimeStamp'].min().date())
+    end_date = st.date_input("Lopetuspäivä", df['TimeStamp'].max().date())
 
-    # Background zones
-    zones = pd.DataFrame({
-        'y': [49.5, 50],
-        'y2': [50, 50.5],
-        'color': ['#ffe6e6', '#e6f0ff']
-    })
+    mask = (df['TimeStamp'].dt.date >= start_date) & (df['TimeStamp'].dt.date <= end_date)
+    filtered_df = df.loc[mask]
 
-    background = alt.Chart(zones).mark_rect(opacity=0.3).encode(
-        y='y:Q',
-        y2='y2:Q',
-        color=alt.Color('color:N', scale=None, legend=None)
-    )
-
-    # Line chart
-    line_chart = alt.Chart(df).mark_line(
-        color='#34495e',
-        strokeWidth=2,
-        interpolate='monotone'
-    ).encode(
-        x=alt.X("Timestamp:T", title="Time", axis=alt.Axis(format="%H:%M:%S")),
-        y=alt.Y("FrequencyHz:Q", title="Frequency (Hz)", scale=alt.Scale(domain=[y_min, y_max], nice=False, clamp=True)),
-        tooltip=["Timestamp:T", "FrequencyHz:Q"]
-    )
-
-    chart = (background + line_chart).properties(
-        width=1000,
-        height=500,
-        title="Live Frequency from Statnett"
-    )
-
-    st.altair_chart(chart, use_container_width=True)
+    fig = px.line(filtered_df, x='TimeStamp', y='Value',
+                  title='Sähköverkon taajuus (Hz)',
+                  labels={'TimeStamp': 'Aika', 'Value': 'Taajuus (Hz)'})
+    st.plotly_chart(fig, use_container_width=True)
 else:
-    st.warning("No data available to display.")
-
+    st.warning("Ei dataa näytettäväksi.")
