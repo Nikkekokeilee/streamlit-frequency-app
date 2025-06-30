@@ -1,3 +1,5 @@
+# Save this code as app.py
+
 import streamlit as st
 import pandas as pd
 import requests
@@ -129,6 +131,6 @@ if view_option == "Kaavio":
     else:
         st.warning("Ei dataa valitulla aikavälillä.")
 else:
-    st.dataframe(filtered[["Timestamp", "FrequencyHz"]].reset_index(drop=True), use_container_width=True)
-
+    sorted_table = filtered.sort_values(by="Timestamp", ascending=False).reset_index(drop=True)
+    st.dataframe(sorted_table[["Timestamp", "FrequencyHz"]], use_container_width=True)
 
