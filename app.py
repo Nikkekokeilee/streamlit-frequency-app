@@ -28,11 +28,11 @@ def simulate_frequency_data(minutes):
 
 df = simulate_frequency_data(minutes_back)
 
-# Luo taustavyöhykkeet: punainen alle 50 Hz, sininen yli 50 Hz
+# Luo taustavyöhykkeet: punainen 49.5–50, sininen 50–50.5
 background = alt.Chart(pd.DataFrame({
-    'y': [49.5, 50, 50.5],
-    'y2': [50, 50.0001, 50.5],
-    'color': ['red', 'white', 'blue']
+    'y': [49.5, 50],
+    'y2': [50, 50.5],
+    'color': ['red', 'blue']
 })).mark_rect(opacity=0.1).encode(
     y='y:Q',
     y2='y2:Q',
