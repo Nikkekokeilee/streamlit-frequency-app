@@ -6,16 +6,16 @@ import plotly.graph_objects as go
 import time
 
 st.set_page_config(page_title="Statnett Frequency Viewer", layout="wide")
-st.title("Statnett Grid Frequency (Last 30 Minutes)")
+st.title("Statnett Grid Frequency (Last 2 Hours)")
 
 chart_placeholder = st.empty()
 table_placeholder = st.empty()
 
 def fetch_and_display():
     now_utc = datetime.now(timezone.utc)
-    half_hour_ago_utc = now_utc - timedelta(minutes=30)
+    two_hours_ago_utc = now_utc - timedelta(hours=2)
 
-    from_str = half_hour_ago_utc.strftime("%Y-%m-%dT%H:%M:%S")
+    from_str = two_hours_ago_utc.strftime("%Y-%m-%dT%H:%M:%S")
     to_str = now_utc.strftime("%Y-%m-%dT%H:%M:%S")
 
     url = f"https://driftsdata.statnett.no/restapi/Frequency/BySecond?From={from_str}&To={to_str}"
@@ -41,7 +41,7 @@ def fetch_and_display():
     grouped["Color"] = grouped["FrequencyHz"].apply(lambda f: "Blue" if f >= 50 else "Red")
     grouped.rename(columns={"Time_1s": "Timestamp"}, inplace=True)
 
-    result = grouped.sort_values("Timestamp", ascending=False).head(30).sort_values("Timestamp")
+    result = grouped.sort_values("Timestamp", ascending=False).head(120).sort_values("Timestamp")
 
     # Laske y-akselin rajat vain viivan perusteella
     y_min = result["FrequencyHz"].min()
@@ -93,12 +93,14 @@ def fetch_and_display():
             bg = "background-color: rgba(255, 0, 0, 0.2)"
         return [bg if col == "FrequencyHz" else '' for col in row.index]
 
-    styled_df = result.style \
+    # Piilotetaan Color-sarake mutta käytetään sitä tyylittelyssä
+    styled_df = result.copy()
+    styled = styled_df.style \
         .apply(highlight_frequency, axis=1) \
         .set_properties(subset=["Timestamp", "FrequencyHz"], **{'font-size': '16px'}) \
         .hide(axis="columns", subset=["Color"])
 
-    table_placeholder.dataframe(styled_df, use_container_width=True)
+    table_placeholder.dataframe(styled, use_container_width=True)
 
 # Päivitä automaattisesti 10 sekunnin välein
 while True:
