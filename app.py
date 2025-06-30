@@ -6,7 +6,9 @@ import random
 
 # Simuloi taajuusdataa
 def simulate_frequency_data():
-    now = datetime.datetime.utcnow()
+    
+now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
+
     timestamps = [now - datetime.timedelta(seconds=i*30) for i in range(30)][::-1]
     frequencies = [50 + random.uniform(-0.2, 0.2) for _ in range(30)]
     df = pd.DataFrame({"Timestamp": timestamps, "FrequencyHz": frequencies})
