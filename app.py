@@ -49,18 +49,19 @@ try:
 
     st.plotly_chart(fig, use_container_width=True)
 
-    # Taustaväritys FrequencyHz-sarakkeelle
-    
-def highlight_frequency(row):
-    color = row["Color"]
-    if color == "Blue":
-        bg = "background-color: rgba(0, 0, 255, 0.2)"
-    else:
-        bg = "background-color: rgba(255, 0, 0, 0.2)"
-    return [bg if col == "FrequencyHz" else '' for col in row.index
+    # Taustaväritys ja fonttikoon suurennus
+    def highlight_frequency(row):
+        color = row["Color"]
+        if color == "Blue":
+            bg = "background-color: rgba(0, 0, 255, 0.2)"
+        else:
+            bg = "background-color: rgba(255, 0, 0, 0.2)"
+        return [bg if col == "FrequencyHz" else '' for col in row.index]
 
+    styled_df = result.drop(columns=["Color"]).style \
+        .apply(highlight_frequency, axis=1) \
+        .set_properties(subset=["Timestamp", "FrequencyHz"], **{'font-size': '16px'})
 
-    styled_df = result.style.apply(highlight_frequency, axis=1)
     st.dataframe(styled_df, use_container_width=True)
 
 except Exception as e:
