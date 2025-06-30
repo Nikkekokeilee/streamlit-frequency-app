@@ -149,21 +149,21 @@ with tab2:
     sorted_table = filtered.sort_values(by="Timestamp", ascending=False).reset_index(drop=True)
     st.dataframe(sorted_table[["Timestamp", "FrequencyHz"]], use_container_width=True)
 
-# Suomen taajuus (oikea data Fingridiltä)
+# Suomen taajuus (uusi Fingridin rajapinta)
 with tab3:
     now = datetime.utcnow()
     start_time = now - timedelta(minutes=interval_minutes[st.session_state.interval])
     fingrid_url = (
-        f"https://api.fingrid.fi/v1/variable/124/events/json?"
-        f"start_time={start_time.isoformat()}Z&end_time={now.isoformat()}Z"
+        f"https://data.fingrid.fi/api/datasets/177/data?"
+        f"startTime={start_time.isoformat()}Z&endTime={now.isoformat()}Z"
     )
     headers = {"x-api-key": api_key}
     try:
         response = requests.get(fingrid_url, headers=headers)
         response.raise_for_status()
-        fi_data = response.json()
+        fi_data = response.json()["data"]
         df_fi = pd.DataFrame(fi_data)
-        df_fi["Timestamp"] = pd.to_datetime(df_fi["start_time"])
+        df_fi["Timestamp"] = pd.to_datetime(df_fi["startTime"])
         df_fi["FrequencyHz"] = df_fi["value"]
         filtered_fi = df_fi[["Timestamp", "FrequencyHz"]]
     except Exception as e:
