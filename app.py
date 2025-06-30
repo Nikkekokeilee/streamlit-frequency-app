@@ -62,14 +62,19 @@ background = alt.Chart(zones).mark_rect(opacity=0.4).encode(
     color=alt.Color('color:N', scale=None, legend=None)
 )
 
-# Line chart
+# Line chart with fixed y-axis
 line_chart = alt.Chart(df).mark_line(
     color='#34495e',
     strokeWidth=3,
     interpolate='monotone'
 ).encode(
     x=alt.X("Timestamp:T", title="Time", axis=alt.Axis(format="%H:%M:%S")),
-    y=alt.Y("FrequencyHz:Q", title="Frequency (Hz)", scale=alt.Scale(domain=[49.5, 50.5], nice=False, clamp=True)),
+    y=alt.Y(
+        "FrequencyHz:Q",
+        title="Frequency (Hz)",
+        scale=alt.Scale(domain=[49.5, 50.5], nice=False, clamp=True),
+        axis=alt.Axis(values=[49.5, 49.6, 49.7, 49.8, 49.9, 50.0, 50.1, 50.2, 50.3, 50.4, 50.5])
+    ),
     tooltip=["Timestamp:T", "FrequencyHz:Q"]
 )
 
