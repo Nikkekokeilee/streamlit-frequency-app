@@ -66,44 +66,40 @@ try:
         grouped.rename(columns={"Time_10s": "Timestamp"}, inplace=True)
 
         if view_option == "Kaavio":
-            fig = go.Figure()
+            y_min = grouped["FrequencyHz"].min()
+            y_max = grouped["FrequencyHz"].max()
+            y_margin = 0.1
+            y_axis_min = y_min - y_margin
+            y_axis_max = y_max + y_margin
 
-            # Viiva
-            fig.add_trace(go.Scatter(
-                x=grouped["Timestamp"],
-                y=grouped["FrequencyHz"],
-                mode="lines+markers",
-                name="Frequency (Hz)",
-                line=dict(color="black")
-            ))
+            fig = go.Figure()
 
             # Punainen alue alle 49.97 Hz
             fig.add_shape(
-                type="rect",
-                xref="x", yref="y",
+                type="rect", xref="x", yref="y",
                 x0=grouped["Timestamp"].min(), x1=grouped["Timestamp"].max(),
-                y0=grouped["FrequencyHz"].min(), y1=49.97,
-                fillcolor="rgba(255,0,0,0.1)",
-                line_width=0,
-                layer="below"
+                y0=y_axis_min, y1=min(49.97, y_axis_max),
+                fillcolor="rgba(255,0,0,0.1)", line_width=0, layer="below"
             )
 
             # Sininen alue yli 50.03 Hz
             fig.add_shape(
-                type="rect",
-                xref="x", yref="y",
+                type="rect", xref="x", yref="y",
                 x0=grouped["Timestamp"].min(), x1=grouped["Timestamp"].max(),
-                y0=50.03, y1=grouped["FrequencyHz"].max(),
-                fillcolor="rgba(0,0,255,0.1)",
-                line_width=0,
-                layer="below"
+                y0=max(50.03, y_axis_min), y1=y_axis_max,
+                fillcolor="rgba(0,0,255,0.1)", line_width=0, layer="below"
             )
+
+            fig.add_trace(go.Scatter(x=grouped["Timestamp"], y=grouped["FrequencyHz"],
+                                     mode="lines+markers", name="Frequency (Hz)",
+                                     line=dict(color="black")))
 
             fig.update_layout(
                 title=f"Grid Frequency (Hz) – viimeiset {interval_option}",
                 xaxis_title="Aika (UTC)",
                 yaxis_title="Taajuus (Hz)",
-                height=600
+                height=600,
+                yaxis=dict(range=[y_axis_min, y_axis_max])
             )
             st.plotly_chart(fig, use_container_width=True)
         else:
