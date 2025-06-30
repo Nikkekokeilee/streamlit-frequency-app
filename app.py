@@ -1,4 +1,5 @@
-import streamlit as st
+with open("app.py", "w", encoding="utf-8") as f:
+    f.write("""import streamlit as st
 import pandas as pd
 import numpy as np
 import requests
@@ -184,3 +185,5 @@ with tab3:
         st.plotly_chart(fig_fi, use_container_width=True)
     else:
         st.warning("Ei dataa valitulla aikavälillä.")
+""")
+
