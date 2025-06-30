@@ -21,7 +21,8 @@ def fetch_frequency_data():
         timestamps = [start_time + datetime.timedelta(seconds=i * period_sec) for i in range(len(measurements))]
         df = pd.DataFrame({"Timestamp": timestamps, "FrequencyHz": measurements})
         return df
-    except:
+    except Exception as e:
+        # Simuloitu data, jos API ei toimi
         now = datetime.datetime.utcnow()
         timestamps = [now - datetime.timedelta(seconds=i*5) for i in range(30)][::-1]
         frequencies = [50 + 0.5 * (-1)**i for i in range(30)]
@@ -39,13 +40,21 @@ st.markdown("<meta http-equiv='refresh' content='5'>", unsafe_allow_html=True)
 df = fetch_frequency_data()
 
 # Lisää värikenttä
-df["Color"] = df["FrequencyHz"].apply(lambda x: "red" if x < 50 else ("blue" if x > 50 else "white"))
+def get_color(freq):
+    if freq < 50:
+        return "red"
+    elif freq > 50:
+        return "blue"
+    else:
+        return "white"
+
+df["Color"] = df["FrequencyHz"].apply(get_color)
 
 # Luo kuvaaja Altairilla
-chart = alt.Chart(df).mark_line(point=True).encode(
-    x="Timestamp:T",
-    y=alt.Y("FrequencyHz:Q", scale=alt.Scale(domain=[49.5, 50.5])),
-    color=alt.Color("Color:N", scale=None)
+chart = alt.Chart(df).mark_line(point=alt.OverlayMarkDef(filled=True, size=60)).encode(
+    x=alt.X("Timestamp:T", title="Time"),
+    y=alt.Y("FrequencyHz:Q", title="Frequency (Hz)", scale=alt.Scale(domain=[49.5, 50.5])),
+    color=alt.Color("Color:N", scale=None, legend=None)
 ).properties(
     width=800,
     height=400
