@@ -61,8 +61,9 @@ try:
     grouped["Color"] = grouped["FrequencyHz"].apply(lambda f: "Blue" if f >= 50 else "Red")
     grouped.rename(columns={"Time_10s": "Timestamp"}, inplace=True)
 
-    # Rajataan näkyvä aikaväli valinnan mukaan
-    cutoff_time = pd.Timestamp(now_utc - timedelta(minutes=interval_minutes))
+    # ✅ Varmistetaan, että Timestamp on datetime64[ns]
+    grouped["Timestamp"] = pd.to_datetime(grouped["Timestamp"])
+    cutoff_time = now_utc - timedelta(minutes=interval_minutes)
     result = grouped[grouped["Timestamp"] >= cutoff_time]
 
     if result.empty:
@@ -86,39 +87,4 @@ try:
 
         if y_axis_max > 50.01:
             fig.add_shape(
-                type="rect", xref="x", yref="y",
-                x0=result["Timestamp"].min(), x1=result["Timestamp"].max(),
-                y0=max(50.01, y_axis_min), y1=y_axis_max,
-                fillcolor="rgba(0,0,255,0.1)", line_width=0, layer="below"
-            )
-
-        fig.add_trace(go.Scatter(x=result["Timestamp"], y=result["FrequencyHz"],
-                                 mode="lines+markers", line=dict(color="black")))
-
-        fig.update_layout(
-            title=f"Grid Frequency (Hz) – viimeiset {interval_option}",
-            xaxis_title="Time",
-            yaxis_title="Frequency (Hz)",
-            yaxis=dict(range=[y_axis_min, y_axis_max])
-        )
-
-        chart_placeholder.plotly_chart(fig, use_container_width=True)
-
-        def highlight_frequency(row):
-            color = row["Color"]
-            if color == "Blue":
-                bg = "background-color: rgba(0, 0, 255, 0.2)"
-            else:
-                bg = "background-color: rgba(255, 0, 0, 0.2)"
-            return [bg if col == "FrequencyHz" else '' for col in row.index]
-
-        styled_df = result.copy()
-        styled = styled_df.style \
-            .apply(highlight_frequency, axis=1) \
-            .set_properties(subset=["Timestamp", "FrequencyHz"], **{'font-size': '16px'}) \
-            .hide(axis="columns", subset=["Color"])
-
-        table_placeholder.dataframe(styled, use_container_width=True)
-
-except Exception as e:
-    st.error(f"Virhe datan haussa: {e}")
+                type="rect
