@@ -55,30 +55,27 @@ try:
     df["Index"] = df.index
     df["UtcTimestamp"] = df["Index"].apply(lambda i: start_time + timedelta(seconds=i * period_sec))
     df["TimestampUTC"] = df["UtcTimestamp"]
-    df["Time_10s"] = df["TimestampUTC"].dt.floor("10S")
+    df["Time_10s"] = pd.to_datetime(df["TimestampUTC"]).dt.floor("10S")
 
     grouped = df.groupby("Time_10s").agg(FrequencyHz=("FrequencyHz", "mean")).reset_index()
     grouped["Color"] = grouped["FrequencyHz"].apply(lambda f: "Blue" if f >= 50 else "Red")
     grouped.rename(columns={"Time_10s": "Timestamp"}, inplace=True)
 
     # Rajataan näkyvä aikaväli valinnan mukaan
-    cutoff_time = now_utc - timedelta(minutes=interval_minutes)
+    cutoff_time = pd.Timestamp(now_utc - timedelta(minutes=interval_minutes))
     result = grouped[grouped["Timestamp"] >= cutoff_time]
 
     if result.empty:
         st.warning("Ei dataa valitulla aikavälillä.")
     else:
-        # Laske y-akselin rajat vain viivan perusteella
         y_min = result["FrequencyHz"].min()
         y_max = result["FrequencyHz"].max()
         y_margin = (y_max - y_min) * 0.1 if y_max > y_min else 0.1
         y_axis_min = y_min - y_margin
         y_axis_max = y_max + y_margin
 
-        # Plotly chart
         fig = go.Figure()
 
-        # Punainen alue: alle 49.99 Hz
         if y_axis_min < 49.99:
             fig.add_shape(
                 type="rect", xref="x", yref="y",
@@ -87,7 +84,6 @@ try:
                 fillcolor="rgba(255,0,0,0.1)", line_width=0, layer="below"
             )
 
-        # Sininen alue: yli 50.01 Hz
         if y_axis_max > 50.01:
             fig.add_shape(
                 type="rect", xref="x", yref="y",
@@ -96,7 +92,6 @@ try:
                 fillcolor="rgba(0,0,255,0.1)", line_width=0, layer="below"
             )
 
-        # Musta viiva
         fig.add_trace(go.Scatter(x=result["Timestamp"], y=result["FrequencyHz"],
                                  mode="lines+markers", line=dict(color="black")))
 
@@ -109,7 +104,6 @@ try:
 
         chart_placeholder.plotly_chart(fig, use_container_width=True)
 
-        # Taulukon värit ja fonttikoko
         def highlight_frequency(row):
             color = row["Color"]
             if color == "Blue":
@@ -119,7 +113,10 @@ try:
             return [bg if col == "FrequencyHz" else '' for col in row.index]
 
         styled_df = result.copy()
-        styled = styled_df.style             .apply(highlight_frequency, axis=1)             .set_properties(subset=["Timestamp", "FrequencyHz"], **{'font-size': '16px'})             .hide(axis="columns", subset=["Color"])
+        styled = styled_df.style \
+            .apply(highlight_frequency, axis=1) \
+            .set_properties(subset=["Timestamp", "FrequencyHz"], **{'font-size': '16px'}) \
+            .hide(axis="columns", subset=["Color"])
 
         table_placeholder.dataframe(styled, use_container_width=True)
 
