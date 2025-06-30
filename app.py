@@ -5,55 +5,63 @@ import altair as alt
 import random
 import pytz
 
-# Streamlit-sovellus
-st.set_page_config(page_title="Frequency Monitor", layout="wide")
-st.title("📊 Frequency (Hz) Visualization")
+# Streamlit app configuration
+st.set_page_config(page_title="📊 Frequency Trend Monitor", layout="wide")
+st.title("📊 Frequency Trend Monitor")
 
-# Käyttäjän valinnat
-minutes_back = st.slider("Kuinka monta minuuttia taaksepäin näytetään?", min_value=1, max_value=30, value=5)
-refresh_interval = st.slider("Päivitystiheys sekunteina", min_value=10, max_value=120, value=30)
+# Sidebar controls
+st.sidebar.header("⚙️ Asetukset")
+minutes_back = st.sidebar.slider("Näytettävä historian pituus (minuuttia)", 1, 60, 10)
+refresh_interval = st.sidebar.slider("Päivitystiheys (sekuntia)", 5, 120, 30)
 
-# Päivitä automaattisesti
+# Auto-refresh
 st.markdown(f"<meta http-equiv='refresh' content='{refresh_interval}'>", unsafe_allow_html=True)
 
-# Simuloi taajuusdataa
+# Simulate frequency data
 def simulate_frequency_data(minutes):
     local_tz = pytz.timezone("Europe/Helsinki")
     now = datetime.datetime.now(local_tz)
-    points = int((minutes * 60) / 30)
-    timestamps = [now - datetime.timedelta(seconds=i*30) for i in range(points)][::-1]
-    # Lisää vaihtelua taajuuteen
-    frequencies = [50 + random.uniform(-0.4, 0.4) for _ in range(points)]
-    df = pd.DataFrame({"Timestamp": timestamps, "FrequencyHz": frequencies})
-    return df
+    points = int((minutes * 60) / 10)  # 10s välein
+    timestamps = [now - datetime.timedelta(seconds=i*10) for i in range(points)][::-1]
+    frequencies = []
+    base = 50
+    for _ in range(points):
+        base += random.uniform(-0.05, 0.05)
+        base = max(49.5, min(50.5, base))
+        frequencies.append(round(base, 3))
+    return pd.DataFrame({"Timestamp": timestamps, "FrequencyHz": frequencies})
 
 df = simulate_frequency_data(minutes_back)
 
-# Luo taustavyöhykkeet: punainen 49.5–50, sininen 50–50.5
-background = alt.Chart(pd.DataFrame({
+# Background zones
+zones = pd.DataFrame({
     'y': [49.5, 50],
     'y2': [50, 50.5],
-    'color': ['red', 'blue']
-})).mark_rect(opacity=0.15).encode(
+    'color': ['#ffcccc', '#cce5ff']
+})
+
+background = alt.Chart(zones).mark_rect(opacity=0.3).encode(
     y='y:Q',
     y2='y2:Q',
     color=alt.Color('color:N', scale=None, legend=None)
 )
 
-# Luo viivakaavio
-line = alt.Chart(df).mark_line(color='black', strokeWidth=2).encode(
-    x=alt.X("Timestamp:T", title="Time", axis=alt.Axis(format="%H:%M:%S")),
-    y=alt.Y("FrequencyHz:Q", title="Frequency (Hz)",
-            scale=alt.Scale(domain=[49.5, 50.5], nice=False, clamp=True)),
+# Line chart with smooth interpolation
+line = alt.Chart(df).mark_line(
+    color='black',
+    strokeWidth=2,
+    interpolate='monotone'
+).encode(
+    x=alt.X("Timestamp:T", title="Aika", axis=alt.Axis(format="%H:%M:%S")),
+    y=alt.Y("FrequencyHz:Q", title="Taajuus (Hz)", scale=alt.Scale(domain=[49.5, 50.5], nice=False, clamp=True)),
     tooltip=["Timestamp:T", "FrequencyHz:Q"]
 )
 
-# Yhdistä tausta ja viiva
+# Combine background and line
 chart = (background + line).properties(
     width=900,
-    height=400,
-    title="Frequency Fluctuation Over Time"
+    height=450,
+    title="📈 Taajuuden kehitys"
 )
 
 st.altair_chart(chart, use_container_width=True)
-
