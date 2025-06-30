@@ -1,4 +1,4 @@
 streamlit
 pandas
 altair
-statnett-api-client
+requests
