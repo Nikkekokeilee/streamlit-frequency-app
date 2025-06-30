@@ -8,14 +8,11 @@ from streamlit_autorefresh import st_autorefresh
 st.set_page_config(page_title="Statnett Frequency Viewer", layout="wide")
 st.title("Statnett Grid Frequency Viewer")
 
-# Automaattinen päivitys 2 minuutin välein
 st_autorefresh(interval=120_000, key="data_refresh")
 
-# Manuaalinen päivityspainike
 if st.button("Päivitä nyt"):
     st.experimental_rerun()
 
-# Aikavälin valinta (max 1h)
 interval_option = st.selectbox(
     "Valitse aikaväli:",
     options=["10 min", "30 min", "1 h"],
@@ -61,8 +58,10 @@ try:
     grouped["Color"] = grouped["FrequencyHz"].apply(lambda f: "Blue" if f >= 50 else "Red")
     grouped.rename(columns={"Time_10s": "Timestamp"}, inplace=True)
 
-    grouped["Timestamp"] = pd.to_datetime(grouped["Timestamp"])
-    cutoff_time = pd.to_datetime(now_utc - timedelta(minutes=interval_minutes))
+    # ✅ Korjaus: poista aikavyöhykkeet molemmista
+    grouped["Timestamp"] = pd.to_datetime(grouped["Timestamp"]).dt.tz_localize(None)
+    cutoff_time = pd.to_datetime(now_utc - timedelta(minutes=interval_minutes)).tz_localize(None)
+
     result = grouped[grouped["Timestamp"] >= cutoff_time]
 
     if result.empty:
