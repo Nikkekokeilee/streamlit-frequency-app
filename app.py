@@ -95,4 +95,40 @@ if view_option == "Kaavio":
     if not filtered.empty:
         y_min = filtered["FrequencyHz"].min()
         y_max = filtered["FrequencyHz"].max()
-        y_axis_min = y_min - 
+        y_axis_min = y_min - 0.05
+        y_axis_max = y_max + 0.05
+
+        fig = go.Figure()
+
+        # Punainen alue alle 49.97 Hz
+        fig.add_shape(
+            type="rect", xref="x", yref="y",
+            x0=filtered["Timestamp"].min(), x1=filtered["Timestamp"].max(),
+            y0=y_axis_min, y1=min(49.97, y_axis_max),
+            fillcolor="rgba(255,0,0,0.1)", line_width=0, layer="below"
+        )
+
+        # Sininen alue yli 50.03 Hz
+        fig.add_shape(
+            type="rect", xref="x", yref="y",
+            x0=filtered["Timestamp"].min(), x1=filtered["Timestamp"].max(),
+            y0=max(50.03, y_axis_min), y1=y_axis_max,
+            fillcolor="rgba(0,0,255,0.1)", line_width=0, layer="below"
+        )
+
+        fig.add_trace(go.Scatter(x=filtered["Timestamp"], y=filtered["FrequencyHz"],
+                                 mode="lines+markers", line=dict(color="black")))
+
+        fig.update_layout(
+            xaxis_title="Aika (UTC)",
+            yaxis_title="Taajuus (Hz)",
+            height=600,
+            margin=dict(t=10)
+        )
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.warning("Ei dataa valitulla aikavälillä.")
+else:
+    st.dataframe(filtered[["Timestamp", "FrequencyHz"]].reset_index(drop=True), use_container_width=True)
+
+
