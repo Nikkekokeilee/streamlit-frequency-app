@@ -8,22 +8,8 @@ import pytz
 # Page configuration
 st.set_page_config(page_title="Frequency Trend Dashboard", layout="wide")
 
-# Header
-st.markdown("""
-    <style>
-        .main-title {
-            font-size: 2.5em;
-            font-weight: 600;
-            color: #2c3e50;
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        .sidebar .sidebar-content {
-            background-color: #f8f9fa;
-        }
-    </style>
-    <div class="main-title">📊 Frequency Trend Dashboard</div>
-""", unsafe_allow_html=True)
+# Title
+st.title("📊 Frequency Trend Dashboard")
 
 # Sidebar controls
 st.sidebar.header("⚙️ Controls")
@@ -62,7 +48,7 @@ background = alt.Chart(zones).mark_rect(opacity=0.4).encode(
     color=alt.Color('color:N', scale=None, legend=None)
 )
 
-# Line chart with fixed y-axis
+# Line chart with strict y-axis
 line_chart = alt.Chart(df).mark_line(
     color='#34495e',
     strokeWidth=3,
@@ -82,7 +68,7 @@ line_chart = alt.Chart(df).mark_line(
 chart = (background + line_chart).properties(
     width=1000,
     height=500,
-    title="Live Frequency Monitoring"
+    title="Live Frequency Monitoring (Strict Y-Axis)"
 )
 
 st.altair_chart(chart, use_container_width=True)
