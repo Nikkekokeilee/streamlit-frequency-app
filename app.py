@@ -42,7 +42,7 @@ background = alt.Chart(pd.DataFrame({
 # Luo viivakaavio
 line = alt.Chart(df).mark_line(color='black').encode(
     x=alt.X("Timestamp:T", title="Time", axis=alt.Axis(format="%H:%M:%S")),
-    y=alt.Y("FrequencyHz:Q", title="Frequency (Hz)", scale=alt.Scale(domain=[49.5, 50.5], clamp=True, nice=False)),
+    y=alt.Y("FrequencyHz:Q", title="Frequency (Hz)", scale=alt.Scale(domain=[49.5, 50.5], nice=False, clamp=True)),
     tooltip=["Timestamp:T", "FrequencyHz:Q"]
 )
 
