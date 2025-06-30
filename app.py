@@ -38,7 +38,7 @@ try:
     grouped["Color"] = grouped["FrequencyHz"].apply(lambda f: "Blue" if f >= 50 else "Red")
     grouped.rename(columns={"Time_1s": "Timestamp"}, inplace=True)
 
-    result = grouped.sort_values("Timestamp", ascending=False).head(30).sort_values("Timestamp")
+    result = grouped.sort_values("Timestamp", ascending=False).head(30)
 
     # Plotly chart with dynamic y-axis range
     fig = go.Figure()
@@ -48,7 +48,14 @@ try:
     fig.update_layout(title="Grid Frequency (Hz)", xaxis_title="Time", yaxis_title="Frequency (Hz)", yaxis=dict(range=[y_min, y_max]))
 
     st.plotly_chart(fig, use_container_width=True)
-    st.dataframe(result, use_container_width=True)
+
+    # Taustaväritys FrequencyHz-sarakkeelle
+    def highlight_frequency(row):
+        color = row["Color"].lower()
+        return [f'background-color: {color}' if col == "FrequencyHz" else '' for col in row.index]
+
+    styled_df = result.style.apply(highlight_frequency, axis=1)
+    st.dataframe(styled_df, use_container_width=True)
 
 except Exception as e:
     st.error(f"Virhe datan haussa: {e}")
