@@ -67,14 +67,43 @@ try:
 
         if view_option == "Kaavio":
             fig = go.Figure()
-            fig.add_trace(go.Scatter(x=grouped["Timestamp"], y=grouped["FrequencyHz"],
-                                     mode="lines+markers", name="Frequency (Hz)",
-                                     line=dict(color="black")))
+
+            # Viiva
+            fig.add_trace(go.Scatter(
+                x=grouped["Timestamp"],
+                y=grouped["FrequencyHz"],
+                mode="lines+markers",
+                name="Frequency (Hz)",
+                line=dict(color="black")
+            ))
+
+            # Punainen alue alle 49.97 Hz
+            fig.add_shape(
+                type="rect",
+                xref="x", yref="y",
+                x0=grouped["Timestamp"].min(), x1=grouped["Timestamp"].max(),
+                y0=grouped["FrequencyHz"].min(), y1=49.97,
+                fillcolor="rgba(255,0,0,0.1)",
+                line_width=0,
+                layer="below"
+            )
+
+            # Sininen alue yli 50.03 Hz
+            fig.add_shape(
+                type="rect",
+                xref="x", yref="y",
+                x0=grouped["Timestamp"].min(), x1=grouped["Timestamp"].max(),
+                y0=50.03, y1=grouped["FrequencyHz"].max(),
+                fillcolor="rgba(0,0,255,0.1)",
+                line_width=0,
+                layer="below"
+            )
+
             fig.update_layout(
                 title=f"Grid Frequency (Hz) – viimeiset {interval_option}",
                 xaxis_title="Aika (UTC)",
                 yaxis_title="Taajuus (Hz)",
-                height=600  # Asetetaan kaavion korkeus
+                height=600
             )
             st.plotly_chart(fig, use_container_width=True)
         else:
