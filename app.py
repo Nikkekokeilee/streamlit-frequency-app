@@ -8,7 +8,6 @@ import time
 st.set_page_config(page_title="Statnett Frequency Viewer", layout="wide")
 st.title("Statnett Grid Frequency (Last 30 Minutes)")
 
-# Luo tyhjät kontit kaaviolle ja taulukolle
 chart_placeholder = st.empty()
 table_placeholder = st.empty()
 
@@ -42,18 +41,36 @@ def fetch_and_display():
     grouped["Color"] = grouped["FrequencyHz"].apply(lambda f: "Blue" if f >= 50 else "Red")
     grouped.rename(columns={"Time_1s": "Timestamp"}, inplace=True)
 
-    result = grouped.sort_values("Timestamp", ascending=False).head(30)
+    result = grouped.sort_values("Timestamp", ascending=False).head(30).sort_values("Timestamp")
 
-    # Plotly chart
+    # Plotly chart with background color bands
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=result["Timestamp"], y=result["FrequencyHz"], mode="lines+markers", line=dict(color="blue")))
-    y_min = result["FrequencyHz"].min() - 0.05
-    y_max = result["FrequencyHz"].max() + 0.05
-    fig.update_layout(title="Grid Frequency (Hz)", xaxis_title="Time", yaxis_title="Frequency (Hz)", yaxis=dict(autorange=True))
+
+    # Add background color bands
+    fig.add_shape(type="rect", xref="x", yref="y",
+                  x0=result["Timestamp"].min(), x1=result["Timestamp"].max(),
+                  y0=0, y1=49.99,
+                  fillcolor="rgba(255,0,0,0.1)", line_width=0, layer="below")
+
+    fig.add_shape(type="rect", xref="x", yref="y",
+                  x0=result["Timestamp"].min(), x1=result["Timestamp"].max(),
+                  y0=50.01, y1=100,
+                  fillcolor="rgba(0,0,255,0.1)", line_width=0, layer="below")
+
+    # Add black line
+    fig.add_trace(go.Scatter(x=result["Timestamp"], y=result["FrequencyHz"],
+                             mode="lines+markers", line=dict(color="black")))
+
+    fig.update_layout(
+        title="Grid Frequency (Hz)",
+        xaxis_title="Time",
+        yaxis_title="Frequency (Hz)",
+        yaxis=dict(autorange=True)
+    )
 
     chart_placeholder.plotly_chart(fig, use_container_width=True)
 
-    # Taulukon tyylittely
+    # Style table
     def highlight_frequency(row):
         color = row["Color"]
         if color == "Blue":
@@ -69,10 +86,10 @@ def fetch_and_display():
 
     table_placeholder.dataframe(styled_df, use_container_width=True)
 
-# Automaattinen päivityssilmukka
+# Päivitä automaattisesti 10 sekunnin välein
 while True:
     try:
         fetch_and_display()
     except Exception as e:
         st.error(f"Virhe datan haussa: {e}")
-    time.sleep(10)  # Päivitä 10 sekunnin välein
+    time.sleep(10)
