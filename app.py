@@ -3,123 +3,125 @@ import pandas as pd
 import requests
 from datetime import datetime, timedelta, timezone
 import plotly.graph_objects as go
+from streamlit_autorefresh import st_autorefresh
 
-# Streamlit page config
 st.set_page_config(page_title="Statnett Frequency Viewer", layout="wide")
 st.title("Statnett Grid Frequency Viewer")
 
-# Päivitä-nappi ja automaattinen päivitys 2 minuutin välein
-refresh = st.button("Päivitä")
-st_autorefresh = st.experimental_get_query_params().get("refresh", [None])[0]
-if st_autorefresh is None:
-    st.experimental_set_query_params(refresh=str(datetime.utcnow().timestamp()))
+# Automaattinen päivitys 2 minuutin välein
+st_autorefresh(interval=120_000, key="data_refresh")
 
-# Aikavälin valinta
-interval_option = st.selectbox("Valitse aikaväli:", ["10 min", "30 min", "1 h"], index=2)
-interval_minutes = {"10 min": 10, "30 min": 30, "1 h": 60}[interval_option]
+# Manuaalinen päivityspainike
+if st.button("Päivitä nyt"):
+    st.experimental_rerun()
 
-# Päivitä vain, jos nappia painetaan tai 2 min kulunut
-last_refresh = st.session_state.get("last_refresh", datetime.min)
-now = datetime.utcnow()
-if refresh or (now - last_refresh).total_seconds() > 120:
-    st.session_state["last_refresh"] = now
+# Aikavälin valinta (max 1h)
+interval_option = st.selectbox(
+    "Valitse aikaväli:",
+    options=["10 min", "30 min", "1 h"],
+    index=2
+)
 
-    try:
-        # Aikaväli: viimeinen 1 tunti UTC-ajassa
-        now_utc = datetime.now(timezone.utc)
-        one_hour_ago_utc = now_utc - timedelta(hours=1)
+interval_minutes = {
+    "10 min": 10,
+    "30 min": 30,
+    "1 h": 60
+}[interval_option]
 
-        from_str = one_hour_ago_utc.strftime("%Y-%m-%dT%H:%M:%S")
-        to_str = now_utc.strftime("%Y-%m-%dT%H:%M:%S")
+chart_placeholder = st.empty()
+table_placeholder = st.empty()
 
-        url = f"https://driftsdata.statnett.no/restapi/Frequency/BySecond?From={from_str}&To={to_str}"
-        response = requests.get(url)
-        response.raise_for_status()
-        data = response.json()
+try:
+    now_utc = datetime.now(timezone.utc)
+    start_utc = now_utc - timedelta(hours=1)  # haetaan aina 1h historia
 
-        start_point_utc = data["StartPointUTC"]
-        period_tick_ms = data["PeriodTickMs"]
-        measurements = data["Measurements"]
+    from_str = start_utc.strftime("%Y-%m-%dT%H:%M:%S")
+    to_str = now_utc.strftime("%Y-%m-%dT%H:%M:%S")
 
-        start_time = datetime(1970, 1, 1, tzinfo=timezone.utc) + timedelta(seconds=start_point_utc // 1000)
-        period_sec = period_tick_ms / 1000
+    url = f"https://driftsdata.statnett.no/restapi/Frequency/BySecond?From={from_str}&To={to_str}"
 
-        df = pd.DataFrame(measurements, columns=["FrequencyHz"])
-        df["Index"] = df.index
-        df["UtcTimestamp"] = df["Index"].apply(lambda i: start_time + timedelta(seconds=i * period_sec))
-        df["Time_10s"] = df["UtcTimestamp"].dt.floor("10S")
+    response = requests.get(url)
+    response.raise_for_status()
+    data = response.json()
 
-        grouped = df.groupby("Time_10s").agg(FrequencyHz=("FrequencyHz", "mean")).reset_index()
-        grouped["Color"] = grouped["FrequencyHz"].apply(lambda f: "Blue" if f >= 50 else "Red")
-        grouped.rename(columns={"Time_10s": "Timestamp"}, inplace=True)
+    start_point_utc = data["StartPointUTC"]
+    period_tick_ms = data["PeriodTickMs"]
+    measurements = data["Measurements"]
 
-        # Rajataan näkyvä aikaväli
-        cutoff_time = now_utc - timedelta(minutes=interval_minutes)
-        result = grouped[grouped["Timestamp"] >= cutoff_time]
+    start_time = datetime(1970, 1, 1) + timedelta(seconds=start_point_utc // 1000)
+    period_sec = period_tick_ms / 1000
 
-        if result.empty:
-            st.warning("Ei dataa valitulla aikavälillä.")
-        else:
-            # Laske y-akselin rajat vain viivan perusteella
-            y_min = result["FrequencyHz"].min()
-            y_max = result["FrequencyHz"].max()
-            y_margin = (y_max - y_min) * 0.1 if y_max > y_min else 0.05
-            y_axis_min = y_min - y_margin
-            y_axis_max = y_max + y_margin
+    df = pd.DataFrame(measurements, columns=["FrequencyHz"])
+    df["Index"] = df.index
+    df["UtcTimestamp"] = df["Index"].apply(lambda i: start_time + timedelta(seconds=i * period_sec))
+    df["TimestampUTC"] = df["UtcTimestamp"]
+    df["Time_10s"] = df["TimestampUTC"].dt.floor("10S")
 
-            # Plotly chart
-            fig = go.Figure()
+    grouped = df.groupby("Time_10s").agg(FrequencyHz=("FrequencyHz", "mean")).reset_index()
+    grouped["Color"] = grouped["FrequencyHz"].apply(lambda f: "Blue" if f >= 50 else "Red")
+    grouped.rename(columns={"Time_10s": "Timestamp"}, inplace=True)
 
-            # Punainen alue: alle 49.99 Hz
-            if y_axis_min < 49.99:
-                fig.add_shape(
-                    type="rect", xref="x", yref="y",
-                    x0=result["Timestamp"].min(), x1=result["Timestamp"].max(),
-                    y0=y_axis_min, y1=min(49.99, y_axis_max),
-                    fillcolor="rgba(255,0,0,0.1)", line_width=0, layer="below"
-                )
+    # Rajataan näkyvä aikaväli valinnan mukaan
+    cutoff_time = now_utc - timedelta(minutes=interval_minutes)
+    result = grouped[grouped["Timestamp"] >= cutoff_time]
 
-            # Sininen alue: yli 50.01 Hz
-            if y_axis_max > 50.01:
-                fig.add_shape(
-                    type="rect", xref="x", yref="y",
-                    x0=result["Timestamp"].min(), x1=result["Timestamp"].max(),
-                    y0=max(50.01, y_axis_min), y1=y_axis_max,
-                    fillcolor="rgba(0,0,255,0.1)", line_width=0, layer="below"
-                )
+    if result.empty:
+        st.warning("Ei dataa valitulla aikavälillä.")
+    else:
+        # Laske y-akselin rajat vain viivan perusteella
+        y_min = result["FrequencyHz"].min()
+        y_max = result["FrequencyHz"].max()
+        y_margin = (y_max - y_min) * 0.1 if y_max > y_min else 0.1
+        y_axis_min = y_min - y_margin
+        y_axis_max = y_max + y_margin
 
-            # Musta viiva
-            fig.add_trace(go.Scatter(x=result["Timestamp"], y=result["FrequencyHz"],
-                                     mode="lines+markers", line=dict(color="black")))
+        # Plotly chart
+        fig = go.Figure()
 
-            fig.update_layout(
-                title=f"Grid Frequency (Hz) – viimeiset {interval_option}",
-                xaxis_title="Time",
-                yaxis_title="Frequency (Hz)",
-                yaxis=dict(range=[y_axis_min, y_axis_max])
+        # Punainen alue: alle 49.99 Hz
+        if y_axis_min < 49.99:
+            fig.add_shape(
+                type="rect", xref="x", yref="y",
+                x0=result["Timestamp"].min(), x1=result["Timestamp"].max(),
+                y0=y_axis_min, y1=min(49.99, y_axis_max),
+                fillcolor="rgba(255,0,0,0.1)", line_width=0, layer="below"
             )
 
-            st.plotly_chart(fig, use_container_width=True)
+        # Sininen alue: yli 50.01 Hz
+        if y_axis_max > 50.01:
+            fig.add_shape(
+                type="rect", xref="x", yref="y",
+                x0=result["Timestamp"].min(), x1=result["Timestamp"].max(),
+                y0=max(50.01, y_axis_min), y1=y_axis_max,
+                fillcolor="rgba(0,0,255,0.1)", line_width=0, layer="below"
+            )
 
-            # Taulukon värit ja fonttikoko
-            def highlight_frequency(row):
-                color = row["Color"]
-                if color == "Blue":
-                    bg = "background-color: rgba(0, 0, 255, 0.2)"
-                else:
-                    bg = "background-color: rgba(255, 0, 0, 0.2)"
-                return [bg if col == "FrequencyHz" else '' for col in row.index]
+        # Musta viiva
+        fig.add_trace(go.Scatter(x=result["Timestamp"], y=result["FrequencyHz"],
+                                 mode="lines+markers", line=dict(color="black")))
 
-            styled_df = result.copy()
-            styled = styled_df.style \
-                .apply(highlight_frequency, axis=1) \
-                .set_properties(subset=["Timestamp", "FrequencyHz"], **{'font-size': '16px'}) \
-                .hide(axis="columns", subset=["Color"])
+        fig.update_layout(
+            title=f"Grid Frequency (Hz) – viimeiset {interval_option}",
+            xaxis_title="Time",
+            yaxis_title="Frequency (Hz)",
+            yaxis=dict(range=[y_axis_min, y_axis_max])
+        )
 
-            st.dataframe(styled, use_container_width=True)
+        chart_placeholder.plotly_chart(fig, use_container_width=True)
 
-    except Exception as e:
-        st.error(f"Virhe datan haussa: {e}")
-else:
-    st.info("Päivitetään automaattisesti 2 minuutin välein tai paina 'Päivitä'.")
+        # Taulukon värit ja fonttikoko
+        def highlight_frequency(row):
+            color = row["Color"]
+            if color == "Blue":
+                bg = "background-color: rgba(0, 0, 255, 0.2)"
+            else:
+                bg = "background-color: rgba(255, 0, 0, 0.2)"
+            return [bg if col == "FrequencyHz" else '' for col in row.index]
 
+        styled_df = result.copy()
+        styled = styled_df.style             .apply(highlight_frequency, axis=1)             .set_properties(subset=["Timestamp", "FrequencyHz"], **{'font-size': '16px'})             .hide(axis="columns", subset=["Color"])
+
+        table_placeholder.dataframe(styled, use_container_width=True)
+
+except Exception as e:
+    st.error(f"Virhe datan haussa: {e}")
