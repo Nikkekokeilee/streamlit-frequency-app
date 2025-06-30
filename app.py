@@ -43,20 +43,33 @@ def fetch_and_display():
 
     result = grouped.sort_values("Timestamp", ascending=False).head(30).sort_values("Timestamp")
 
-    # Plotly chart with background color bands that follow actual y-axis values
+    # Laske y-akselin rajat vain viivan perusteella
+    y_min = result["FrequencyHz"].min()
+    y_max = result["FrequencyHz"].max()
+    y_margin = (y_max - y_min) * 0.1
+    y_axis_min = y_min - y_margin
+    y_axis_max = y_max + y_margin
+
+    # Plotly chart
     fig = go.Figure()
 
-    # Red area: below 49.99 Hz
-    fig.add_shape(type="rect", xref="x", yref="y",
-                  x0=result["Timestamp"].min(), x1=result["Timestamp"].max(),
-                  y0=0, y1=49.99,
-                  fillcolor="rgba(255,0,0,0.1)", line_width=0, layer="below")
+    # Punainen alue: alle 49.99 Hz
+    if y_axis_min < 49.99:
+        fig.add_shape(
+            type="rect", xref="x", yref="y",
+            x0=result["Timestamp"].min(), x1=result["Timestamp"].max(),
+            y0=y_axis_min, y1=min(49.99, y_axis_max),
+            fillcolor="rgba(255,0,0,0.1)", line_width=0, layer="below"
+        )
 
-    # Blue area: above 50.01 Hz
-    fig.add_shape(type="rect", xref="x", yref="y",
-                  x0=result["Timestamp"].min(), x1=result["Timestamp"].max(),
-                  y0=50.01, y1=51.0,
-                  fillcolor="rgba(0,0,255,0.1)", line_width=0, layer="below")
+    # Sininen alue: yli 50.01 Hz
+    if y_axis_max > 50.01:
+        fig.add_shape(
+            type="rect", xref="x", yref="y",
+            x0=result["Timestamp"].min(), x1=result["Timestamp"].max(),
+            y0=max(50.01, y_axis_min), y1=y_axis_max,
+            fillcolor="rgba(0,0,255,0.1)", line_width=0, layer="below"
+        )
 
     # Musta viiva
     fig.add_trace(go.Scatter(x=result["Timestamp"], y=result["FrequencyHz"],
@@ -66,12 +79,12 @@ def fetch_and_display():
         title="Grid Frequency (Hz)",
         xaxis_title="Time",
         yaxis_title="Frequency (Hz)",
-        yaxis=dict(autorange=True)
+        yaxis=dict(range=[y_axis_min, y_axis_max])
     )
 
     chart_placeholder.plotly_chart(fig, use_container_width=True)
 
-    # Style table
+    # Taulukon värit ja fonttikoko
     def highlight_frequency(row):
         color = row["Color"]
         if color == "Blue":
