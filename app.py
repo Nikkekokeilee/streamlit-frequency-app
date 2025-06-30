@@ -32,6 +32,18 @@ cutoff_time = now - timedelta(minutes=interval_minutes)
 from_param = start_time.strftime("%Y-%m-%d")
 url = f"https://driftsdata.statnett.no/restapi/Frequency/BySecond?From={from_param}"
 
+# Manuaalinen päivityspainike näkymän mukaan
+if view_option == "Kaavio":
+    if st.button("Päivitä kaavio"):
+        update_chart = True
+    else:
+        update_chart = False
+elif view_option == "Taulukko":
+    if st.button("Päivitä taulukko"):
+        update_table = True
+    else:
+        update_table = False
+
 try:
     response = requests.get(url)
     response.raise_for_status()
@@ -65,7 +77,8 @@ try:
         grouped = df.groupby("Time_10s").agg(FrequencyHz=("FrequencyHz", "mean")).reset_index()
         grouped.rename(columns={"Time_10s": "Timestamp"}, inplace=True)
 
-        if view_option == "Kaavio":
+        # Näytetään näkymä valinnan mukaan
+        if view_option == "Kaavio" and update_chart:
             y_min = grouped["FrequencyHz"].min()
             y_max = grouped["FrequencyHz"].max()
             y_axis_min = y_min - 0.05
@@ -97,11 +110,12 @@ try:
                 title=f"Grid Frequency (Hz) – viimeiset {interval_option}",
                 xaxis_title="Aika (UTC)",
                 yaxis_title="Taajuus (Hz)",
-                height=600,
-                yaxis=dict(range=[y_axis_min, y_axis_max])
+                yaxis=dict(range=[y_axis_min, y_axis_max]),
+                height=600
             )
             st.plotly_chart(fig, use_container_width=True)
-        else:
+
+        elif view_option == "Taulukko" and update_table:
             st.dataframe(grouped[["Timestamp", "FrequencyHz"]].reset_index(drop=True), use_container_width=True)
 
 except Exception as e:
