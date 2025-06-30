@@ -1,6 +1,3 @@
-# Rewriting the complete and corrected Streamlit app.py file with three tabs and all syntax errors fixed
-
-app_code = '''
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -29,13 +26,9 @@ def fetch_data():
     from_param = start_time.strftime("%Y-%m-%d")
     url = f"https://driftsdata.statnett.no/restapi/Frequency/BySecond?From={from_param}"
 
-    try:
-        response = requests.get(url, timeout=10)
-        response.raise_for_status()
-        data = response.json()
-    except Exception as e:
-        st.error(f"Virhe datan haussa: {e}")
-        return pd.DataFrame()
+    response = requests.get(url)
+    response.raise_for_status()
+    data = response.json()
 
     start_point_utc = data["StartPointUTC"]
     period_tick_ms = data["PeriodTickMs"]
@@ -191,10 +184,3 @@ with tab3:
         st.plotly_chart(fig_fi, use_container_width=True)
     else:
         st.warning("Ei dataa valitulla aikavälillä.")
-'''
-
-with open("app.py", "w", encoding="utf-8") as f:
-    f.write(app_code)
-
-print("Korjattu app.py-tiedosto on tallennettu.")
-
