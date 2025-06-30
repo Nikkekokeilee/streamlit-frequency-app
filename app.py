@@ -68,9 +68,8 @@ try:
         if view_option == "Kaavio":
             y_min = grouped["FrequencyHz"].min()
             y_max = grouped["FrequencyHz"].max()
-            y_margin = 0.1
-            y_axis_min = y_min - y_margin
-            y_axis_max = y_max + y_margin
+            y_axis_min = y_min - 0.05
+            y_axis_max = y_max + 0.05
 
             fig = go.Figure()
 
