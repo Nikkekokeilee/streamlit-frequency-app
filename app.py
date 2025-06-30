@@ -5,16 +5,15 @@ import requests
 from datetime import datetime, timedelta
 import plotly.graph_objects as go
 
+st.set_page_config(layout="wide")
 
 # ✅ Tarkista, että API-avain on määritetty
 if "FINGRID_API_KEY" not in st.secrets:
-    st.error("Fingridin API-avainta ei ole määritetty. Lisää se tiedostoon .streamlit/secrets.toml avaimella 'FINGRID_API_KEY'.")
-    st.stop()
+    st.error("Fingridin API-avainta ei ole määritetty. Lisää se tiedostoon .streamlit/secrets.toml avaimella 'FINGRID_API_KEY'.")
+    st.stop()
 
 # ✅ Hae avain käyttöön
 api_key = st.secrets["FINGRID_API_KEY"]
-
-st.set_page_config(layout="wide")
 
 # Sessioasetukset
 if "interval" not in st.session_state:
@@ -27,9 +26,6 @@ if "data" not in st.session_state:
     st.session_state.data = None
 if "last_fetch_time" not in st.session_state:
     st.session_state.last_fetch_time = datetime.min
-
-# Fingrid API-avain (käyttäjän tulee syöttää)
-api_key = st.secrets.get("FINGRID_API_KEY", "")
 
 # Datahaku Norjan taajuudelle
 def fetch_data():
@@ -59,32 +55,6 @@ def fetch_data():
     df["Time_10s"] = df["Timestamp"].dt.floor("10S")
     grouped = df.groupby("Time_10s").agg(FrequencyHz=("FrequencyHz", "mean")).reset_index()
     grouped.rename(columns={"Time_10s": "Timestamp"}, inplace=True)
-
-    return grouped
-
-# Fingridin taajuusdatan haku
-def fetch_fingrid_frequency_data(api_key):
-    now = datetime.utcnow()
-    start_time = now - timedelta(hours=1)
-    start_str = start_time.strftime("%Y-%m-%dT%H:%M:%SZ")
-    end_str = now.strftime("%Y-%m-%dT%H:%M:%SZ")
-
-    headers = {"x-api-key": api_key}
-    url = f"https://api.fingrid.fi/v1/variable/124/events/json?start_time={start_str}&end_time={end_str}"
-
-    response = requests.get(url, headers=headers)
-    response.raise_for_status()
-    data = response.json()
-
-    if not data:
-        return pd.DataFrame()
-
-    df = pd.DataFrame(data)
-    df["Timestamp"] = pd.to_datetime(df["start_time"])
-    df["FrequencyHz"] = df["value"]
-    df = df[["Timestamp", "FrequencyHz"]]
-    df["Timestamp"] = df["Timestamp"].dt.floor("10S")
-    grouped = df.groupby("Timestamp").agg(FrequencyHz=("FrequencyHz", "mean")).reset_index()
 
     return grouped
 
@@ -181,47 +151,56 @@ with tab2:
 
 # Suomen taajuus (oikea data Fingridiltä)
 with tab3:
-    if api_key:
-        try:
-            df_fi = fetch_fingrid_frequency_data(api_key)
-            filtered_fi = df_fi[df_fi["Timestamp"] >= datetime.utcnow() - timedelta(minutes=interval_minutes[st.session_state.interval])]
+    now = datetime.utcnow()
+    start_time = now - timedelta(minutes=interval_minutes[st.session_state.interval])
+    fingrid_url = (
+        f"https://api.fingrid.fi/v1/variable/124/events/json?"
+        f"start_time={start_time.isoformat()}Z&end_time={now.isoformat()}Z"
+    )
+    headers = {"x-api-key": api_key}
+    try:
+        response = requests.get(fingrid_url, headers=headers)
+        response.raise_for_status()
+        fi_data = response.json()
+        df_fi = pd.DataFrame(fi_data)
+        df_fi["Timestamp"] = pd.to_datetime(df_fi["start_time"])
+        df_fi["FrequencyHz"] = df_fi["value"]
+        filtered_fi = df_fi[["Timestamp", "FrequencyHz"]]
+    except Exception as e:
+        st.error(f"Virhe haettaessa Fingridin dataa: {e}")
+        filtered_fi = pd.DataFrame()
 
-            if not filtered_fi.empty:
-                y_min = filtered_fi["FrequencyHz"].min()
-                y_max = filtered_fi["FrequencyHz"].max()
-                y_axis_min = y_min - 0.05
-                y_axis_max = y_max + 0.05
+    if not filtered_fi.empty:
+        y_min = filtered_fi["FrequencyHz"].min()
+        y_max = filtered_fi["FrequencyHz"].max()
+        y_axis_min = y_min - 0.05
+        y_axis_max = y_max + 0.05
 
-                fig_fi = go.Figure()
+        fig_fi = go.Figure()
 
-                fig_fi.add_shape(
-                    type="rect", xref="x", yref="y",
-                    x0=filtered_fi["Timestamp"].min(), x1=filtered_fi["Timestamp"].max(),
-                    y0=y_axis_min, y1=min(49.97, y_axis_max),
-                    fillcolor="rgba(255,0,0,0.1)", line_width=0, layer="below"
-                )
+        fig_fi.add_shape(
+            type="rect", xref="x", yref="y",
+            x0=filtered_fi["Timestamp"].min(), x1=filtered_fi["Timestamp"].max(),
+            y0=y_axis_min, y1=min(49.97, y_axis_max),
+            fillcolor="rgba(255,0,0,0.1)", line_width=0, layer="below"
+        )
 
-                fig_fi.add_shape(
-                    type="rect", xref="x", yref="y",
-                    x0=filtered_fi["Timestamp"].min(), x1=filtered_fi["Timestamp"].max(),
-                    y0=max(50.03, y_axis_min), y1=y_axis_max,
-                    fillcolor="rgba(0,0,255,0.1)", line_width=0, layer="below"
-                )
+        fig_fi.add_shape(
+            type="rect", xref="x", yref="y",
+            x0=filtered_fi["Timestamp"].min(), x1=filtered_fi["Timestamp"].max(),
+            y0=max(50.03, y_axis_min), y1=y_axis_max,
+            fillcolor="rgba(0,0,255,0.1)", line_width=0, layer="below"
+        )
 
-                fig_fi.add_trace(go.Scatter(x=filtered_fi["Timestamp"], y=filtered_fi["FrequencyHz"],
-                                            mode="lines+markers", line=dict(color="black")))
+        fig_fi.add_trace(go.Scatter(x=filtered_fi["Timestamp"], y=filtered_fi["FrequencyHz"],
+                                    mode="lines+markers", line=dict(color="black")))
 
-                fig_fi.update_layout(
-                    xaxis_title="Aika (UTC)",
-                    yaxis_title="Taajuus (Hz)",
-                    height=600,
-                    margin=dict(t=10)
-                )
-                st.plotly_chart(fig_fi, use_container_width=True)
-            else:
-                st.warning("Ei dataa valitulla aikavälillä.")
-        except Exception as e:
-            st.error(f"Virhe haettaessa Fingridin dataa: {e}")
+        fig_fi.update_layout(
+            xaxis_title="Aika (UTC)",
+            yaxis_title="Taajuus (Hz)",
+            height=600,
+            margin=dict(t=10)
+        )
+        st.plotly_chart(fig_fi, use_container_width=True)
     else:
-        st.warning("Fingridin API-avainta ei ole määritetty. Lisää se Streamlitin secrets-tiedostoon avaimella 'FINGRID_API_KEY'.")
-
+        st.warning("Ei dataa saatavilla Fingridiltä.")
