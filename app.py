@@ -33,22 +33,19 @@ st.set_page_config(page_title="Live Frequency Monitor", layout="wide")
 st.title("🔄 Live Frequency Monitor (Statnett API)")
 
 # Päivitä automaattisesti 5 sekunnin välein
-st.markdown(
-    "<meta http-equiv='refresh' content='5'>",
-    unsafe_allow_html=True
-)
+st.markdown("<meta http-equiv='refresh' content='5'>", unsafe_allow_html=True)
 
 # Hae ja näytä data
 df = fetch_frequency_data()
+
+# Lisää värikenttä
+df["Color"] = df["FrequencyHz"].apply(lambda x: "red" if x < 50 else ("blue" if x > 50 else "white"))
 
 # Luo kuvaaja Altairilla
 chart = alt.Chart(df).mark_line(point=True).encode(
     x="Timestamp:T",
     y=alt.Y("FrequencyHz:Q", scale=alt.Scale(domain=[49.5, 50.5])),
-    color=alt.condition(
-        alt.datum.FrequencyHz < 50, alt.value("red"),
-        alt.condition(alt.datum.FrequencyHz > 50, alt.value("blue"), alt.value("white"))
-    )
+    color=alt.Color("Color:N", scale=None)
 ).properties(
     width=800,
     height=400
