@@ -20,12 +20,15 @@ interval_minutes = {
     "1 h": 60
 }[interval_option]
 
+# ✅ Näyttövalinta: kaavio vai taulukko
+view_option = st.radio("Valitse näkymä:", ["Kaavio", "Taulukko"], index=0)
+
 # Lasketaan aikaväli
 now = datetime.utcnow()
 start_time = now - timedelta(hours=1)
 cutoff_time = now - timedelta(minutes=interval_minutes)
 
-# Haetaan data From-parametrilla (esim. 2012-01-01)
+# Haetaan data From-parametrilla
 from_param = start_time.strftime("%Y-%m-%d")
 url = f"https://driftsdata.statnett.no/restapi/Frequency/BySecond?From={from_param}"
 
@@ -62,21 +65,20 @@ try:
         grouped = df.groupby("Time_10s").agg(FrequencyHz=("FrequencyHz", "mean")).reset_index()
         grouped.rename(columns={"Time_10s": "Timestamp"}, inplace=True)
 
-        # Piirretään kuvaaja
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(x=grouped["Timestamp"], y=grouped["FrequencyHz"],
-                                 mode="lines+markers", name="Frequency (Hz)",
-                                 line=dict(color="black")))
-        fig.update_layout(
-            title=f"Grid Frequency (Hz) – viimeiset {interval_option}",
-            xaxis_title="Aika (UTC)",
-            yaxis_title="Taajuus (Hz)",
-            yaxis=dict(range=[grouped["FrequencyHz"].min() - 0.1, grouped["FrequencyHz"].max() + 0.1])
-        )
-        st.plotly_chart(fig, use_container_width=True)
-
-        # Näytetään taulukko
-        st.dataframe(grouped[["Timestamp", "FrequencyHz"]].reset_index(drop=True), use_container_width=True)
+        if view_option == "Kaavio":
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(x=grouped["Timestamp"], y=grouped["FrequencyHz"],
+                                     mode="lines+markers", name="Frequency (Hz)",
+                                     line=dict(color="black")))
+            fig.update_layout(
+                title=f"Grid Frequency (Hz) – viimeiset {interval_option}",
+                xaxis_title="Aika (UTC)",
+                yaxis_title="Taajuus (Hz)",
+                yaxis=dict(range=[grouped["FrequencyHz"].min() - 0.1, grouped["FrequencyHz"].max() + 0.1])
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.dataframe(grouped[["Timestamp", "FrequencyHz"]].reset_index(drop=True), use_container_width=True)
 
 except Exception as e:
     st.error(f"Virhe datan haussa: {e}")
