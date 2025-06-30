@@ -1,3 +1,6 @@
+# Rewriting the complete and corrected Streamlit app.py file with three tabs and all syntax errors fixed
+
+app_code = '''
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -12,7 +15,7 @@ if "interval" not in st.session_state:
     st.session_state.interval = "1 h"
 if "last_updated" not in st.session_state:
     st.session_state.last_updated = None
-if "auto_refresh" not in st st.session_state:
+if "auto_refresh" not in st.session_state:
     st.session_state.auto_refresh = False
 if "data" not in st.session_state:
     st.session_state.data = None
@@ -26,9 +29,13 @@ def fetch_data():
     from_param = start_time.strftime("%Y-%m-%d")
     url = f"https://driftsdata.statnett.no/restapi/Frequency/BySecond?From={from_param}"
 
-    response = requests.get(url)
-    response.raise_for_status()
-    data = response.json()
+    try:
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+    except Exception as e:
+        st.error(f"Virhe datan haussa: {e}")
+        return pd.DataFrame()
 
     start_point_utc = data["StartPointUTC"]
     period_tick_ms = data["PeriodTickMs"]
@@ -184,4 +191,10 @@ with tab3:
         st.plotly_chart(fig_fi, use_container_width=True)
     else:
         st.warning("Ei dataa valitulla aikavälillä.")
+'''
+
+with open("app.py", "w", encoding="utf-8") as f:
+    f.write(app_code)
+
+print("Korjattu app.py-tiedosto on tallennettu.")
 
