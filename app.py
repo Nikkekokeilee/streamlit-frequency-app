@@ -66,9 +66,6 @@ try:
         grouped.rename(columns={"Time_10s": "Timestamp"}, inplace=True)
 
         if view_option == "Kaavio":
-            y_min = grouped["FrequencyHz"].min()
-            y_max = grouped["FrequencyHz"].max()
-
             fig = go.Figure()
             fig.add_trace(go.Scatter(x=grouped["Timestamp"], y=grouped["FrequencyHz"],
                                      mode="lines+markers", name="Frequency (Hz)",
@@ -77,7 +74,7 @@ try:
                 title=f"Grid Frequency (Hz) – viimeiset {interval_option}",
                 xaxis_title="Aika (UTC)",
                 yaxis_title="Taajuus (Hz)",
-                yaxis=dict(range=[y_min, y_max])
+                height=600  # Asetetaan kaavion korkeus
             )
             st.plotly_chart(fig, use_container_width=True)
         else:
