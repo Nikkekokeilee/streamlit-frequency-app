@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import altair as alt
 import datetime
-import requests
+from statnett_api_client import get_frequency
 
 # Streamlit app configuration
 st.set_page_config(page_title="Statnett Frequency Monitor", layout="wide")
@@ -16,28 +16,21 @@ refresh_interval = st.sidebar.slider("Refresh Interval (seconds)", 5, 120, 30)
 # Auto-refresh
 st.markdown(f"<meta http-equiv='refresh' content='{refresh_interval}'>", unsafe_allow_html=True)
 
-# Fetch frequency data from Statnett API
+# Fetch frequency data using statnett-api-client
 @st.cache_data(ttl=refresh_interval)
-def fetch_statnett_frequency_data(minutes):
+def fetch_frequency_data(minutes):
     try:
         end_time = datetime.datetime.utcnow()
         start_time = end_time - datetime.timedelta(minutes=minutes)
-        url = f"https://driftsdata.statnett.no/restapi/FrequencyBySecond/{start_time.isoformat()}Z/{end_time.isoformat()}Z"
-        response = requests.get(url)
-        if response.status_code == 200:
-            data = response.json()
-            df = pd.DataFrame(data)
-            df["Timestamp"] = pd.to_datetime(df["TimeStamp"])
-            df["FrequencyHz"] = df["Value"]
-            return df[["Timestamp", "FrequencyHz"]]
-        else:
-            st.error(f"Failed to fetch data: {response.status_code}")
-            return pd.DataFrame(columns=["Timestamp", "FrequencyHz"])
+        df = get_frequency(fmt='pandas', date_from=start_time, date_to=end_time)
+        df.rename(columns={"value": "FrequencyHz", "timestamp": "Timestamp"}, inplace=True)
+        df["Timestamp"] = pd.to_datetime(df["Timestamp"])
+        return df[["Timestamp", "FrequencyHz"]]
     except Exception as e:
         st.error(f"Error fetching data: {e}")
         return pd.DataFrame(columns=["Timestamp", "FrequencyHz"])
 
-df = fetch_statnett_frequency_data(minutes_back)
+df = fetch_frequency_data(minutes_back)
 
 if not df.empty:
     # Determine y-axis scale based on data range with padding
