@@ -18,7 +18,7 @@ def fetch_data():
         response.raise_for_status()
         data = response.json()
         df = pd.DataFrame(data)
-        df['TimeStamp'] = pd.to_datetime(df['TimeStamp'])
+        df['TimeStamp'] = pd.to_datetime(df['timeStamp'])
         return df
     except Exception as e:
         st.error(f"Virhe datan haussa: {e}")
