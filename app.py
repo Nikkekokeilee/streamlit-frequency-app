@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import requests
 from datetime import datetime, timedelta, timezone
+import plotly.graph_objects as go
 
 st.set_page_config(page_title="Statnett Frequency Viewer", layout="wide")
 st.title("Statnett Grid Frequency (Last 30 Minutes)")
@@ -39,8 +40,14 @@ try:
 
     result = grouped.sort_values("Timestamp", ascending=False).head(30).sort_values("Timestamp")
 
-    st.line_chart(result.set_index("Timestamp")["FrequencyHz"])
+    # Plotly chart with dynamic y-axis range
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=result["Timestamp"], y=result["FrequencyHz"], mode="lines+markers", line=dict(color="blue")))
+    y_min = result["FrequencyHz"].min() - 0.05
+    y_max = result["FrequencyHz"].max() + 0.05
+    fig.update_layout(title="Grid Frequency (Hz)", xaxis_title="Time", yaxis_title="Frequency (Hz)", yaxis=dict(range=[y_min, y_max]))
 
+    st.plotly_chart(fig, use_container_width=True)
     st.dataframe(result, use_container_width=True)
 
 except Exception as e:
