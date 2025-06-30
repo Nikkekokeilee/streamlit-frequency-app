@@ -8,33 +8,30 @@ st.set_page_config(page_title="Statnett Frequency Viewer", layout="wide")
 st.title("Statnett Grid Frequency Viewer")
 
 # Näkymän valinta
-view_option = st.radio("Valitse näkymä:", ["Kaavio", "Taulukko"], index=0)
+view_option = st.radio("Valitse näkymä:", ["Kaavio", "Taulukko"], horizontal=True)
 
-# Aikavälin valinta nappeina vasempaan reunaan
-with st.container():
-    col1, col2 = st.columns([1, 9])
-    with col1:
-        st.markdown("### Aikaväli")
-        interval_option = st.radio(
-            label="",
-            options=["10 min", "30 min", "1 h"],
-            index=2,
-            key="interval_radio"
-        )
+# Aikavälin valinta vierekkäin vasempaan reunaan
+col1, col2, col3 = st.columns([1, 1, 1])
+with col1:
+    interval_10 = st.button("10 min")
+with col2:
+    interval_30 = st.button("30 min")
+with col3:
+    interval_60 = st.button("1 h")
 
-interval_minutes = {
-    "10 min": 10,
-    "30 min": 30,
-    "1 h": 60
-}[interval_option]
+# Tallennetaan valinta session_stateen
+if "interval_minutes" not in st.session_state:
+    st.session_state.interval_minutes = 60
 
-# Päivityspainike näkymän mukaan
-if view_option == "Kaavio":
-    if st.button("Päivitä kaavio"):
-        st.session_state["refresh_chart"] = True
-else:
-    if st.button("Päivitä taulukko"):
-        st.session_state["refresh_table"] = True
+if interval_10:
+    st.session_state.interval_minutes = 10
+elif interval_30:
+    st.session_state.interval_minutes = 30
+elif interval_60:
+    st.session_state.interval_minutes = 60
+
+interval_minutes = st.session_state.interval_minutes
+interval_label = {10: "10 min", 30: "30 min", 60: "1 h"}[interval_minutes]
 
 # Lasketaan aikaväli
 now = datetime.utcnow()
@@ -79,6 +76,9 @@ try:
         grouped.rename(columns={"Time_10s": "Timestamp"}, inplace=True)
 
         if view_option == "Kaavio":
+            if st.button("Päivitä kaavio"):
+                pass  # painike vain päivittää näkymän
+
             y_min = grouped["FrequencyHz"].min()
             y_max = grouped["FrequencyHz"].max()
             y_axis_min = y_min - 0.05
@@ -105,16 +105,19 @@ try:
             fig.add_trace(go.Scatter(x=grouped["Timestamp"], y=grouped["FrequencyHz"],
                                      mode="lines+markers", name="Frequency (Hz)",
                                      line=dict(color="black")))
-
             fig.update_layout(
-                title=f"Grid Frequency (Hz) – viimeiset {interval_option}",
+                title=f"Grid Frequency (Hz) – viimeiset {interval_label}",
                 xaxis_title="Aika (UTC)",
                 yaxis_title="Taajuus (Hz)",
                 height=600,
                 yaxis=dict(range=[y_axis_min, y_axis_max])
             )
             st.plotly_chart(fig, use_container_width=True)
+
         else:
+            if st.button("Päivitä taulukko"):
+                pass  # painike vain päivittää näkymän
+
             st.dataframe(grouped[["Timestamp", "FrequencyHz"]].reset_index(drop=True), use_container_width=True)
 
 except Exception as e:
