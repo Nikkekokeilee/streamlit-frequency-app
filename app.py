@@ -43,19 +43,22 @@ def fetch_and_display():
 
     result = grouped.sort_values("Timestamp", ascending=False).head(30).sort_values("Timestamp")
 
-    # Plotly chart with background color bands that do NOT affect autoscaling
+    # Plotly chart with background color bands that follow actual y-axis values
     fig = go.Figure()
 
-    fig.add_shape(type="rect", xref="x", yref="paper",
+    # Red area: below 49.99 Hz
+    fig.add_shape(type="rect", xref="x", yref="y",
                   x0=result["Timestamp"].min(), x1=result["Timestamp"].max(),
-                  y0=0, y1=0.4,
+                  y0=0, y1=49.99,
                   fillcolor="rgba(255,0,0,0.1)", line_width=0, layer="below")
 
-    fig.add_shape(type="rect", xref="x", yref="paper",
+    # Blue area: above 50.01 Hz
+    fig.add_shape(type="rect", xref="x", yref="y",
                   x0=result["Timestamp"].min(), x1=result["Timestamp"].max(),
-                  y0=0.6, y1=1,
+                  y0=50.01, y1=51.0,
                   fillcolor="rgba(0,0,255,0.1)", line_width=0, layer="below")
 
+    # Musta viiva
     fig.add_trace(go.Scatter(x=result["Timestamp"], y=result["FrequencyHz"],
                              mode="lines+markers", line=dict(color="black")))
 
