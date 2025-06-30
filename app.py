@@ -5,6 +5,15 @@ import requests
 from datetime import datetime, timedelta
 import plotly.graph_objects as go
 
+
+# ✅ Tarkista, että API-avain on määritetty
+if "FINGRID_API_KEY" not in st.secrets:
+    st.error("Fingridin API-avainta ei ole määritetty. Lisää se tiedostoon .streamlit/secrets.toml avaimella 'FINGRID_API_KEY'.")
+    st.stop()
+
+# ✅ Hae avain käyttöön
+api_key = st.secrets["FINGRID_API_KEY"]
+
 st.set_page_config(layout="wide")
 
 # Sessioasetukset
