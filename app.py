@@ -46,8 +46,6 @@ line = alt.Chart(df).mark_line(color='black').encode(
     tooltip=["Timestamp:T", "FrequencyHz:Q"]
 )
 
-)
-
 # Yhdistä tausta ja viiva
 chart = (background + line).properties(
     width=800,
