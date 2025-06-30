@@ -28,24 +28,26 @@ def simulate_frequency_data(minutes):
 
 df = simulate_frequency_data(minutes_back)
 
-# Määritä väri taajuuden mukaan
-def get_color(freq):
-    if freq < 50:
-        return "red"
-    elif freq > 50:
-        return "blue"
-    else:
-        return "white"
+# Luo taustavyöhykkeet: punainen alle 50 Hz, sininen yli 50 Hz
+background = alt.Chart(pd.DataFrame({
+    'y': [49.5, 50, 50.5],
+    'y2': [50, 50.0001, 50.5],
+    'color': ['red', 'white', 'blue']
+})).mark_rect(opacity=0.1).encode(
+    y='y:Q',
+    y2='y2:Q',
+    color=alt.Color('color:N', scale=None, legend=None)
+)
 
-df["Color"] = df["FrequencyHz"].apply(get_color)
-
-# Luo viivakaavio, jossa väri vaihtuu
-chart = alt.Chart(df).mark_line().encode(
+# Luo viivakaavio
+line = alt.Chart(df).mark_line(color='black').encode(
     x=alt.X("Timestamp:T", title="Time"),
     y=alt.Y("FrequencyHz:Q", title="Frequency (Hz)", scale=alt.Scale(domain=[49.5, 50.5])),
-    color=alt.Color("Color:N", scale=None, legend=None),
     tooltip=["Timestamp:T", "FrequencyHz:Q"]
-).properties(
+)
+
+# Yhdistä tausta ja viiva
+chart = (background + line).properties(
     width=800,
     height=400
 )
