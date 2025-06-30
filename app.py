@@ -24,9 +24,8 @@ chart_placeholder = st.empty()
 table_placeholder = st.empty()
 
 try:
-    # UTC-aika nyt ja aikaväli taaksepäin
     now_utc = datetime.now(timezone.utc)
-    start_utc = now_utc - timedelta(minutes=interval_minutes)
+    start_utc = now_utc - timedelta(hours=1)  # haetaan aina 1h historia
 
     from_str = start_utc.strftime("%Y-%m-%dT%H:%M:%S")
     to_str = now_utc.strftime("%Y-%m-%dT%H:%M:%S")
@@ -41,45 +40,60 @@ try:
     period_tick_ms = data["PeriodTickMs"]
     measurements = data["Measurements"]
 
-    start_time_utc = datetime(1970, 1, 1, tzinfo=timezone.utc) + timedelta(seconds=start_point_utc // 1000)
+    start_time = datetime(1970, 1, 1) + timedelta(seconds=start_point_utc // 1000)
     period_sec = period_tick_ms / 1000
 
     df = pd.DataFrame(measurements, columns=["FrequencyHz"])
     df["Index"] = df.index
-    df["UtcTimestamp"] = df["Index"].apply(lambda i: start_time_utc + timedelta(seconds=i * period_sec))
-    df["TimestampFI"] = df["UtcTimestamp"].dt.tz_convert("Europe/Helsinki")
+    df["UtcTimestamp"] = df["Index"].apply(lambda i: start_time + timedelta(seconds=i * period_sec))
+    df["TimestampFI"] = df["UtcTimestamp"].apply(lambda ts: ts.replace(tzinfo=timezone.utc).astimezone(timezone(timedelta(hours=3))))
     df["Time_10s"] = df["TimestampFI"].dt.floor("10S")
 
     grouped = df.groupby("Time_10s").agg(FrequencyHz=("FrequencyHz", "mean")).reset_index()
     grouped["Color"] = grouped["FrequencyHz"].apply(lambda f: "Blue" if f >= 50 else "Red")
     grouped.rename(columns={"Time_10s": "Timestamp"}, inplace=True)
 
+    # Rajataan näkyvä aikaväli valinnan mukaan
+    cutoff_time = datetime.now(timezone(timedelta(hours=3))) - timedelta(minutes=interval_minutes)
+    result = grouped[grouped["Timestamp"] >= cutoff_time]
+
+    # Laske y-akselin rajat vain viivan perusteella
+    y_min = result["FrequencyHz"].min()
+    y_max = result["FrequencyHz"].max()
+    y_margin = (y_max - y_min) * 0.1 if y_max > y_min else 0.1
+    y_axis_min = y_min - y_margin
+    y_axis_max = y_max + y_margin
+
     # Plotly chart
     fig = go.Figure()
 
-    # Taustavärit
-    fig.add_shape(
-        type="rect", xref="x", yref="y",
-        x0=grouped["Timestamp"].min(), x1=grouped["Timestamp"].max(),
-        y0=0, y1=49.99,
-        fillcolor="rgba(255,0,0,0.1)", line_width=0, layer="below"
-    )
-    fig.add_shape(
-        type="rect", xref="x", yref="y",
-        x0=grouped["Timestamp"].min(), x1=grouped["Timestamp"].max(),
-        y0=50.01, y1=100,
-        fillcolor="rgba(0,0,255,0.1)", line_width=0, layer="below"
-    )
+    # Punainen alue: alle 49.99 Hz
+    if y_axis_min < 49.99:
+        fig.add_shape(
+            type="rect", xref="x", yref="y",
+            x0=result["Timestamp"].min(), x1=result["Timestamp"].max(),
+            y0=y_axis_min, y1=min(49.99, y_axis_max),
+            fillcolor="rgba(255,0,0,0.1)", line_width=0, layer="below"
+        )
+
+    # Sininen alue: yli 50.01 Hz
+    if y_axis_max > 50.01:
+        fig.add_shape(
+            type="rect", xref="x", yref="y",
+            x0=result["Timestamp"].min(), x1=result["Timestamp"].max(),
+            y0=max(50.01, y_axis_min), y1=y_axis_max,
+            fillcolor="rgba(0,0,255,0.1)", line_width=0, layer="below"
+        )
 
     # Musta viiva
-    fig.add_trace(go.Scatter(x=grouped["Timestamp"], y=grouped["FrequencyHz"],
+    fig.add_trace(go.Scatter(x=result["Timestamp"], y=result["FrequencyHz"],
                              mode="lines+markers", line=dict(color="black")))
 
     fig.update_layout(
         title=f"Grid Frequency (Hz) – viimeiset {interval_option}",
         xaxis_title="Time",
         yaxis_title="Frequency (Hz)",
-        yaxis=dict(autorange=True)
+        yaxis=dict(range=[y_axis_min, y_axis_max])
     )
 
     chart_placeholder.plotly_chart(fig, use_container_width=True)
@@ -93,7 +107,7 @@ try:
             bg = "background-color: rgba(255, 0, 0, 0.2)"
         return [bg if col == "FrequencyHz" else '' for col in row.index]
 
-    styled_df = grouped.copy()
+    styled_df = result.copy()
     styled = styled_df.style \
         .apply(highlight_frequency, axis=1) \
         .set_properties(subset=["Timestamp", "FrequencyHz"], **{'font-size': '16px'}) \
