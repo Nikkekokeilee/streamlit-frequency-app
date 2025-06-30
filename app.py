@@ -1,14 +1,50 @@
-with open("app.py", "w", encoding="utf-8") as f:
-    f.write("""import streamlit as st
+import streamlit as st
 import pandas as pd
 import numpy as np
 import requests
 from datetime import datetime, timedelta
 import plotly.graph_objects as go
 
-st.set_page_config(layout="wide")
+# Page configuration
+st.set_page_config(layout="wide", page_title="Sähköverkon taajuus", page_icon="⚡")
 
-# Sessioasetukset
+# Custom CSS for styling
+st.markdown("""
+    <style>
+    html, body, [class*="css"]  {
+        font-family: 'Segoe UI', sans-serif;
+        background-color: #f5f7fa;
+    }
+    h1, h2, h3, h4 {
+        color: #2c3e50;
+    }
+    .stButton>button {
+        background-color: #3498db;
+        color: white;
+        border-radius: 8px;
+        padding: 0.5em 1em;
+        border: none;
+        transition: background-color 0.3s ease;
+    }
+    .stButton>button:hover {
+        background-color: #2980b9;
+    }
+    .stCheckbox>div {
+        padding-top: 0.5em;
+    }
+    .stTabs [data-baseweb="tab"] {
+        font-size: 1.1rem;
+        padding: 0.5rem 1rem;
+    }
+    .stDataFrame {
+        background-color: white;
+        border-radius: 8px;
+        padding: 1em;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# Session state
 if "interval" not in st.session_state:
     st.session_state.interval = "1 h"
 if "last_updated" not in st.session_state:
@@ -20,7 +56,7 @@ if "data" not in st.session_state:
 if "last_fetch_time" not in st.session_state:
     st.session_state.last_fetch_time = datetime.min
 
-# Datahaku Norjan taajuudelle
+# Fetch data from Statnett
 def fetch_data():
     now = datetime.utcnow()
     start_time = now - timedelta(hours=1)
@@ -51,16 +87,16 @@ def fetch_data():
 
     return grouped
 
-# Päivitä data
+# Update data
 def update_data():
     st.session_state.data = fetch_data()
     st.session_state.last_updated = datetime.utcnow()
     st.session_state.last_fetch_time = datetime.utcnow()
 
-# Välilehdet
-tab1, tab2, tab3 = st.tabs(["Kaavio", "Taulukko", "Suomen taajuus"])
+# Tabs
+tab1, tab2, tab3 = st.tabs(["📈 Kaavio", "📋 Taulukko", "🇫🇮 Suomen taajuus"])
 
-# Painikkeet
+# Controls
 st.markdown("<h4 style='text-align: center;'>Valinnat</h4>", unsafe_allow_html=True)
 button_cols = st.columns([1, 1, 1, 1, 2], gap="small")
 
@@ -74,33 +110,33 @@ with button_cols[2]:
     if st.button("1 h"):
         st.session_state.interval = "1 h"
 with button_cols[3]:
-    if st.button("Päivitä"):
+    if st.button("🔄 Päivitä"):
         update_data()
 with button_cols[4]:
     st.session_state.auto_refresh = st.checkbox("Automaattipäivitys (1 min)", value=st.session_state.auto_refresh)
 
-# Automaattinen päivitys
+# Auto refresh
 if st.session_state.auto_refresh:
     now = datetime.utcnow()
     if (now - st.session_state.last_fetch_time).total_seconds() > 60:
         update_data()
 
-# Päivitysaika
+# Last update time
 if st.session_state.last_updated:
     st.caption(f"Viimeisin päivitys: {st.session_state.last_updated.strftime('%H:%M:%S')} UTC")
 
-# Haetaan data tarvittaessa
+# Load data if needed
 if st.session_state.data is None:
     update_data()
 
 data = st.session_state.data
 
-# Suodatus
+# Filter by interval
 interval_minutes = {"10 min": 10, "30 min": 30, "1 h": 60}
 cutoff = datetime.utcnow() - timedelta(minutes=interval_minutes[st.session_state.interval])
 filtered = data[data["Timestamp"] >= cutoff]
 
-# Kaavio
+# Chart tab
 with tab1:
     if not filtered.empty:
         y_min = filtered["FrequencyHz"].min()
@@ -131,18 +167,19 @@ with tab1:
             xaxis_title="Aika (UTC)",
             yaxis_title="Taajuus (Hz)",
             height=600,
-            margin=dict(t=10)
+            margin=dict(t=10),
+            plot_bgcolor="white"
         )
         st.plotly_chart(fig, use_container_width=True)
     else:
         st.warning("Ei dataa valitulla aikavälillä.")
 
-# Taulukko
+# Table tab
 with tab2:
     sorted_table = filtered.sort_values(by="Timestamp", ascending=False).reset_index(drop=True)
     st.dataframe(sorted_table[["Timestamp", "FrequencyHz"]], use_container_width=True)
 
-# Suomen taajuus (mockattu)
+# Finnish mock data tab
 with tab3:
     now = datetime.utcnow()
     minutes = interval_minutes[st.session_state.interval]
@@ -180,10 +217,10 @@ with tab3:
             xaxis_title="Aika (UTC)",
             yaxis_title="Taajuus (Hz)",
             height=600,
-            margin=dict(t=10)
+            margin=dict(t=10),
+            plot_bgcolor="white"
         )
         st.plotly_chart(fig_fi, use_container_width=True)
     else:
         st.warning("Ei dataa valitulla aikavälillä.")
-""")
 
