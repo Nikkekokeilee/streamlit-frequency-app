@@ -49,7 +49,7 @@ def fetch_and_display():
     fig.add_trace(go.Scatter(x=result["Timestamp"], y=result["FrequencyHz"], mode="lines+markers", line=dict(color="blue")))
     y_min = result["FrequencyHz"].min() - 0.05
     y_max = result["FrequencyHz"].max() + 0.05
-    fig.update_layout(title="Grid Frequency (Hz)", xaxis_title="Time", yaxis_title="Frequency (Hz)", yaxis=dict(range=[y_min, y_max]))
+    fig.update_layout(title="Grid Frequency (Hz)", xaxis_title="Time", yaxis_title="Frequency (Hz)", yaxis=dict(autorange=True))
 
     chart_placeholder.plotly_chart(fig, use_container_width=True)
 
