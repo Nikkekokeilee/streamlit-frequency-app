@@ -5,26 +5,30 @@ import altair as alt
 import random
 import pytz
 
+# Streamlit-sovellus
+st.set_page_config(page_title="Live Frequency Monitor", layout="wide")
+st.title("📈 Live Frequency Monitor (Simulated Data)")
+
+# Käyttäjän valinnat
+minutes_back = st.slider("Kuinka monta minuuttia taaksepäin näytetään?", min_value=1, max_value=30, value=5)
+refresh_interval = st.slider("Päivitystiheys sekunteina", min_value=10, max_value=120, value=30)
+
+# Päivitä automaattisesti
+st.markdown(f"<meta http-equiv='refresh' content='{refresh_interval}'>", unsafe_allow_html=True)
+
 # Simuloi taajuusdataa
-def simulate_frequency_data():
+def simulate_frequency_data(minutes):
     local_tz = pytz.timezone("Europe/Helsinki")
     now = datetime.datetime.now(local_tz)
-    timestamps = [now - datetime.timedelta(seconds=i*30) for i in range(30)][::-1]
-    frequencies = [50 + random.uniform(-0.2, 0.2) for _ in range(30)]
+    points = int((minutes * 60) / 30)
+    timestamps = [now - datetime.timedelta(seconds=i*30) for i in range(points)][::-1]
+    frequencies = [50 + random.uniform(-0.2, 0.2) for _ in range(points)]
     df = pd.DataFrame({"Timestamp": timestamps, "FrequencyHz": frequencies})
     return df
 
-# Streamlit-sovellus
-st.set_page_config(page_title="Live Frequency Monitor", layout="wide")
-st.title("🔄 Live Frequency Monitor (Simulated Data)")
+df = simulate_frequency_data(minutes_back)
 
-# Päivitä automaattisesti 30 sekunnin välein
-st.markdown("<meta http-equiv='refresh' content='30'>", unsafe_allow_html=True)
-
-# Hae ja näytä simuloitu data
-df = simulate_frequency_data()
-
-# Lisää värikenttä
+# Määritä väri taajuuden mukaan
 def get_color(freq):
     if freq < 50:
         return "red"
@@ -35,11 +39,12 @@ def get_color(freq):
 
 df["Color"] = df["FrequencyHz"].apply(get_color)
 
-# Luo kuvaaja Altairilla (vain pisteet)
-chart = alt.Chart(df).mark_point(filled=True, size=60).encode(
+# Luo viivakaavio, jossa väri vaihtuu
+chart = alt.Chart(df).mark_line().encode(
     x=alt.X("Timestamp:T", title="Time"),
     y=alt.Y("FrequencyHz:Q", title="Frequency (Hz)", scale=alt.Scale(domain=[49.5, 50.5])),
-    color=alt.Color("Color:N", scale=None, legend=None)
+    color=alt.Color("Color:N", scale=None, legend=None),
+    tooltip=["Timestamp:T", "FrequencyHz:Q"]
 ).properties(
     width=800,
     height=400
