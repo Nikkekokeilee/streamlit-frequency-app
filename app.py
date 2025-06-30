@@ -16,7 +16,7 @@ refresh_interval = st.sidebar.slider("Refresh Interval (seconds)", 5, 120, 30)
 # Auto-refresh
 st.markdown(f"<meta http-equiv='refresh' content='{refresh_interval}'>", unsafe_allow_html=True)
 
-# Fetch frequency data from Statnett API using new endpoint
+# Fetch frequency data from Statnett API
 @st.cache_data(ttl=refresh_interval)
 def fetch_statnett_frequency_data(minutes):
     try:
@@ -24,31 +24,14 @@ def fetch_statnett_frequency_data(minutes):
         start_time = end_time - datetime.timedelta(minutes=minutes)
         from_time_str = start_time.strftime("%Y-%m-%dT%H:%M:%SZ")
         url = f"https://driftsdata.statnett.no/restapi/Frequency/BySecond?From={from_time_str}"
-
         response = requests.get(url)
-        st.text(f"API URL: {url}")
-        st.text(f"Status Code: {response.status_code}")
-
         if response.status_code == 200:
-            try:
-                data = response.json()
-            except Exception as e:
-                st.error(f"Error parsing JSON: {e}")
-                return pd.DataFrame(columns=["Timestamp", "FrequencyHz"])
-
-            start_point = pd.to_datetime(data.get("StartPointUTC"))
-            tick_ms = data.get("PeriodTickMs", 1000)
-            measurements = data.get("Measurements", [])
-
-            if not measurements:
-                st.warning("No measurements returned from API.")
-                return pd.DataFrame(columns=["Timestamp", "FrequencyHz"])
-
-            timestamps = [start_point + pd.Timedelta(milliseconds=i * tick_ms) for i in range(len(measurements))]
-            df = pd.DataFrame({
-                "Timestamp": timestamps,
-                "FrequencyHz": measurements
-            })
+            data = response.json()
+            start_point = pd.to_datetime(data["StartPointUTC"])
+            interval_ms = data["PeriodTickMs"]
+            values = data["Measurements"]
+            timestamps = [start_point + pd.Timedelta(milliseconds=i * interval_ms) for i in range(len(values))]
+            df = pd.DataFrame({"Timestamp": timestamps, "FrequencyHz": values})
             return df
         else:
             st.error(f"Failed to fetch data: {response.status_code}")
@@ -60,12 +43,9 @@ def fetch_statnett_frequency_data(minutes):
 df = fetch_statnett_frequency_data(minutes_back)
 
 if not df.empty:
-    # Determine y-axis scale based on data range with padding
-    min_freq = df["FrequencyHz"].min()
-    max_freq = df["FrequencyHz"].max()
-    padding = 0.01
-    y_min = max(49.5, min_freq - padding)
-    y_max = min(50.5, max_freq + padding)
+    # Fixed y-axis range
+    y_min = 49.5
+    y_max = 50.5
 
     # Background zones
     zones = pd.DataFrame({
