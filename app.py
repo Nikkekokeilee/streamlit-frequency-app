@@ -43,23 +43,19 @@ def fetch_and_display():
 
     result = grouped.sort_values("Timestamp", ascending=False).head(30).sort_values("Timestamp")
 
-    # Plotly chart with background color bands
+    # Plotly chart with background color bands that do NOT affect autoscaling
     fig = go.Figure()
 
-    
-# Add background color bands that do NOT affect y-axis autoscaling
-fig.add_shape(type="rect", xref="x", yref="paper",
-              x0=result["Timestamp"].min(), x1=result["Timestamp"].max(),
-              y0=0, y1=0.5,  # tämä kattaa alaosan (esim. alle 49.99)
-              fillcolor="rgba(255,0,0,0.1)", line_width=0, layer="below")
+    fig.add_shape(type="rect", xref="x", yref="paper",
+                  x0=result["Timestamp"].min(), x1=result["Timestamp"].max(),
+                  y0=0, y1=0.4,
+                  fillcolor="rgba(255,0,0,0.1)", line_width=0, layer="below")
 
-fig.add_shape(type="rect", xref="x", yref="paper",
-              x0=result["Timestamp"].min(), x1=result["Timestamp"].max(),
-              y0=0.5, y1=1,  # tämä kattaa yläosan (esim. yli 50.01)
-              fillcolor="rgba(0,0,255,0.1)", line_width=0, layer="below")
+    fig.add_shape(type="rect", xref="x", yref="paper",
+                  x0=result["Timestamp"].min(), x1=result["Timestamp"].max(),
+                  y0=0.6, y1=1,
+                  fillcolor="rgba(0,0,255,0.1)", line_width=0, layer="below")
 
-
-    # Add black line
     fig.add_trace(go.Scatter(x=result["Timestamp"], y=result["FrequencyHz"],
                              mode="lines+markers", line=dict(color="black")))
 
