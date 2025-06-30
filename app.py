@@ -57,21 +57,26 @@ try:
     if df.empty:
         st.warning("Ei dataa valitulla aikavälillä.")
     else:
+        # ✅ Ryhmitellään 10 sekunnin keskiarvoihin
+        df["Time_10s"] = df["Timestamp"].dt.floor("10S")
+        grouped = df.groupby("Time_10s").agg(FrequencyHz=("FrequencyHz", "mean")).reset_index()
+        grouped.rename(columns={"Time_10s": "Timestamp"}, inplace=True)
+
         # Piirretään kuvaaja
         fig = go.Figure()
-        fig.add_trace(go.Scatter(x=df["Timestamp"], y=df["FrequencyHz"],
+        fig.add_trace(go.Scatter(x=grouped["Timestamp"], y=grouped["FrequencyHz"],
                                  mode="lines+markers", name="Frequency (Hz)",
                                  line=dict(color="black")))
         fig.update_layout(
             title=f"Grid Frequency (Hz) – viimeiset {interval_option}",
             xaxis_title="Aika (UTC)",
             yaxis_title="Taajuus (Hz)",
-            yaxis=dict(range=[df["FrequencyHz"].min() - 0.1, df["FrequencyHz"].max() + 0.1])
+            yaxis=dict(range=[grouped["FrequencyHz"].min() - 0.1, grouped["FrequencyHz"].max() + 0.1])
         )
         st.plotly_chart(fig, use_container_width=True)
 
         # Näytetään taulukko
-        st.dataframe(df[["Timestamp", "FrequencyHz"]].reset_index(drop=True), use_container_width=True)
+        st.dataframe(grouped[["Timestamp", "FrequencyHz"]].reset_index(drop=True), use_container_width=True)
 
 except Exception as e:
     st.error(f"Virhe datan haussa: {e}")
