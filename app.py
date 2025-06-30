@@ -55,4 +55,44 @@ if st.session_state.auto_refresh:
 view_option = st.radio("", ["Kaavio", "Taulukko"], horizontal=True, label_visibility="collapsed")
 
 # Painikkeet ja valinnat keskitetysti
-st.markdown
+st.markdown("<h4 style='text-align: center;'>Valinnat</h4>", unsafe_allow_html=True)
+button_cols = st.columns([1, 1, 1, 1, 2], gap="small")
+
+with button_cols[0]:
+    if st.button("10 min"):
+        st.session_state.interval = "10 min"
+with button_cols[1]:
+    if st.button("30 min"):
+        st.session_state.interval = "30 min"
+with button_cols[2]:
+    if st.button("1 h"):
+        st.session_state.interval = "1 h"
+with button_cols[3]:
+    if st.button("Päivitä"):
+        st.session_state.data = fetch_data()
+        st.session_state.last_updated = datetime.utcnow()
+with button_cols[4]:
+    st.session_state.auto_refresh = st.checkbox("Automaattipäivitys (1 min)", value=st.session_state.auto_refresh)
+
+# Päivitysaika
+if st.session_state.last_updated:
+    st.caption(f"Viimeisin päivitys: {st.session_state.last_updated.strftime('%H:%M:%S')} UTC")
+
+# Haetaan data tarvittaessa
+if st.session_state.data is None:
+    st.session_state.data = fetch_data()
+    st.session_state.last_updated = datetime.utcnow()
+
+data = st.session_state.data
+
+# Suodatus aikavälin mukaan
+interval_minutes = {"10 min": 10, "30 min": 30, "1 h": 60}
+cutoff = datetime.utcnow() - timedelta(minutes=interval_minutes[st.session_state.interval])
+filtered = data[data["Timestamp"] >= cutoff]
+
+# Näytetään kaavio tai taulukko
+if view_option == "Kaavio":
+    if not filtered.empty:
+        y_min = filtered["FrequencyHz"].min()
+        y_max = filtered["FrequencyHz"].max()
+        y_axis_min = y_min - 
