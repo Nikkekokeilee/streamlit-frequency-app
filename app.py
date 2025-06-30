@@ -33,7 +33,7 @@ table_placeholder = st.empty()
 
 try:
     now_utc = datetime.now(timezone.utc)
-    start_utc = now_utc - timedelta(hours=1)  # haetaan aina 1h historia
+    start_utc = now_utc - timedelta(hours=1)
 
     from_str = start_utc.strftime("%Y-%m-%dT%H:%M:%S")
     to_str = now_utc.strftime("%Y-%m-%dT%H:%M:%S")
@@ -55,7 +55,10 @@ try:
     df["Index"] = df.index
     df["UtcTimestamp"] = df["Index"].apply(lambda i: start_time + timedelta(seconds=i * period_sec))
     df["TimestampUTC"] = df["UtcTimestamp"]
-    df["Time_10s"] = pd.to_datetime(df["TimestampUTC"]).dt.floor("10S")
+
+    # ✅ Muunna aikaleimat ennen ryhmittelyä
+    df["TimestampUTC"] = pd.to_datetime(df["TimestampUTC"])
+    df["Time_10s"] = df["TimestampUTC"].dt.floor("10S")
 
     grouped = df.groupby("Time_10s").agg(FrequencyHz=("FrequencyHz", "mean")).reset_index()
     grouped["Color"] = grouped["FrequencyHz"].apply(lambda f: "Blue" if f >= 50 else "Red")
@@ -63,28 +66,6 @@ try:
 
     # ✅ Varmistetaan, että Timestamp on datetime64[ns]
     grouped["Timestamp"] = pd.to_datetime(grouped["Timestamp"])
-    cutoff_time = now_utc - timedelta(minutes=interval_minutes)
+    cutoff_time = pd.to_datetime(now_utc - timedelta(minutes=interval_minutes))
     result = grouped[grouped["Timestamp"] >= cutoff_time]
 
-    if result.empty:
-        st.warning("Ei dataa valitulla aikavälillä.")
-    else:
-        y_min = result["FrequencyHz"].min()
-        y_max = result["FrequencyHz"].max()
-        y_margin = (y_max - y_min) * 0.1 if y_max > y_min else 0.1
-        y_axis_min = y_min - y_margin
-        y_axis_max = y_max + y_margin
-
-        fig = go.Figure()
-
-        if y_axis_min < 49.99:
-            fig.add_shape(
-                type="rect", xref="x", yref="y",
-                x0=result["Timestamp"].min(), x1=result["Timestamp"].max(),
-                y0=y_axis_min, y1=min(49.99, y_axis_max),
-                fillcolor="rgba(255,0,0,0.1)", line_width=0, layer="below"
-            )
-
-        if y_axis_max > 50.01:
-            fig.add_shape(
-                type="rect
