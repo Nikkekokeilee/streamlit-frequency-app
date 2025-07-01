@@ -7,11 +7,12 @@ import plotly.graph_objects as go
 
 st.set_page_config(layout="wide")
 
-# Tarkista API-avain
+# ✅ Tarkista, että API-avain on määritetty
 if "FINGRID_API_KEY" not in st.secrets:
     st.error("Fingridin API-avainta ei ole määritetty. Lisää se Streamlit Cloudin Secrets-osioon avaimella 'FINGRID_API_KEY'.")
     st.stop()
 
+# ✅ Hae avain käyttöön
 api_key = st.secrets["FINGRID_API_KEY"]
 
 # Sessioasetukset
@@ -26,8 +27,8 @@ if "data" not in st.session_state:
 if "last_fetch_time" not in st.session_state:
     st.session_state.last_fetch_time = datetime.min
 
-# Hae Norjan taajuusdata
-def fetch_norway_data():
+# Datahaku Norjan taajuudelle
+def fetch_data():
     now = datetime.utcnow()
     start_time = now - timedelta(hours=1)
     from_param = start_time.strftime("%Y-%m-%d")
@@ -57,32 +58,38 @@ def fetch_norway_data():
 
     return grouped
 
-# Hae Suomen taajuusdata Fingridiltä
-def fetch_finland_data():
+# Päivitä data
+def update_data():
+    st.session_state.data = fetch_data()
+    st.session_state.last_updated = datetime.utcnow()
+    st.session_state.last_fetch_time = datetime.utcnow()
+
+# Haetaan Suomen taajuusdata Fingridiltä
+def fetch_fingrid_data():
     now = datetime.utcnow()
-    start_time = now - timedelta(hours=1)
+    start_time = now - timedelta(minutes=interval_minutes[st.session_state.interval])
     fingrid_url = (
         f"https://data.fingrid.fi/api/datasets/177/data?"
         f"startTime={start_time.isoformat()}Z&endTime={now.isoformat()}Z"
     )
     headers = {"x-api-key": api_key}
-    response = requests.get(fingrid_url, headers=headers)
-    response.raise_for_status()
-    fi_data = response.json()["data"]
-    df_fi = pd.DataFrame(fi_data)
-    df_fi["Timestamp"] = pd.to_datetime(df_fi["startTime"])
-    df_fi["FrequencyHz"] = df_fi["value"]
-    return df_fi[["Timestamp", "FrequencyHz"]]
-
-# Päivitä molemmat datat
-def update_data():
-    st.session_state.data = fetch_norway_data()
-    st.session_state.fi_data = fetch_finland_data()
-    st.session_state.last_updated = datetime.utcnow()
-    st.session_state.last_fetch_time = datetime.utcnow()
+    try:
+        response = requests.get(fingrid_url, headers=headers)
+        response.raise_for_status()
+        fi_data = response.json()["data"]
+        df_fi = pd.DataFrame(fi_data)
+        df_fi["Timestamp"] = pd.to_datetime(df_fi["startTime"], errors="coerce")
+        df_fi["FrequencyHz"] = df_fi["value"]
+        if df_fi["Timestamp"].isnull().all():
+            st.error("Fingridin datassa ei ole kelvollisia aikaleimoja.")
+            return pd.DataFrame()
+        return df_fi[["Timestamp", "FrequencyHz"]]
+    except Exception as e:
+        st.error(f"Virhe haettaessa Fingridin dataa: {e}")
+        return pd.DataFrame()
 
 # Välilehdet
-tab1, tab2, tab3 = st.tabs(["Kaavio", "Taulukko", "Suomen taajuus (erikseen)"])
+tab1, tab2, tab3 = st.tabs(["Kaavio", "Taulukko", "Suomen taajuus"])
 
 # Painikkeet
 st.markdown("<h4 style='text-align: center;'>Valinnat</h4>", unsafe_allow_html=True)
@@ -114,17 +121,17 @@ if st.session_state.last_updated:
     st.caption(f"Viimeisin päivitys: {st.session_state.last_updated.strftime('%H:%M:%S')} UTC")
 
 # Haetaan data tarvittaessa
-if st.session_state.data is None or "fi_data" not in st.session_state:
+if st.session_state.data is None:
     update_data()
 
 data = st.session_state.data
-fi_data = st.session_state.fi_data
-
-# Suodatus
 interval_minutes = {"10 min": 10, "30 min": 30, "1 h": 60}
 cutoff = datetime.utcnow() - timedelta(minutes=interval_minutes[st.session_state.interval])
 filtered = data[data["Timestamp"] >= cutoff]
-filtered_fi = fi_data[fi_data["Timestamp"] >= cutoff]
+
+# Haetaan Suomen taajuusdata
+filtered_fi = fetch_fingrid_data()
+filtered_fi = filtered_fi[filtered_fi["Timestamp"] >= cutoff]
 
 # Kaavio
 with tab1:
@@ -151,16 +158,14 @@ with tab1:
 
         fig.add_shape(
             type="rect", xref="x", yref="y",
-            x0=min(filtered["Timestamp"].min(), filtered_fi["Timestamp"].min()),
-            x1=max(filtered["Timestamp"].max(), filtered_fi["Timestamp"].max()),
+            x0=cutoff, x1=datetime.utcnow(),
             y0=y_axis_min, y1=min(49.97, y_axis_max),
             fillcolor="rgba(255,0,0,0.1)", line_width=0, layer="below"
         )
 
         fig.add_shape(
             type="rect", xref="x", yref="y",
-            x0=min(filtered["Timestamp"].min(), filtered_fi["Timestamp"].min()),
-            x1=max(filtered["Timestamp"].max(), filtered_fi["Timestamp"].max()),
+            x0=cutoff, x1=datetime.utcnow(),
             y0=max(50.03, y_axis_min), y1=y_axis_max,
             fillcolor="rgba(0,0,255,0.1)", line_width=0, layer="below"
         )
@@ -188,7 +193,10 @@ with tab2:
     sorted_table = filtered.sort_values(by="Timestamp", ascending=False).reset_index(drop=True)
     st.dataframe(sorted_table[["Timestamp", "FrequencyHz"]], use_container_width=True)
 
-# Suomen taajuus erikseen
+# Suomen taajuus -välilehti
 with tab3:
-    st.dataframe(filtered_fi.sort_values(by="Timestamp", ascending=False).reset_index(drop=True), use_container_width=True)
+    if not filtered_fi.empty:
+        st.dataframe(filtered_fi.sort_values(by="Timestamp", ascending=False).reset_index(drop=True), use_container_width=True)
+    else:
+        st.warning("Ei dataa saatavilla Fingridiltä.")
 
