@@ -3,8 +3,8 @@ import pandas as pd
 import numpy as np
 import requests
 from datetime import datetime, timedelta
-import plotly.graph_objects as go
 import pytz
+import plotly.graph_objects as go
 
 st.set_page_config(layout="wide")
 
@@ -27,6 +27,12 @@ if "data" not in st.session_state:
     st.session_state.data = None
 if "last_fetch_time" not in st.session_state:
     st.session_state.last_fetch_time = datetime.min
+
+# Näytä kello UTC ja Suomen ajassa
+utc_now = datetime.utcnow()
+helsinki_tz = pytz.timezone("Europe/Helsinki")
+helsinki_now = utc_now.replace(tzinfo=pytz.utc).astimezone(helsinki_tz)
+st.markdown(f"### ⏰ UTC: {utc_now.strftime('%H:%M:%S')} | Suomen aika: {helsinki_now.strftime('%H:%M:%S')}")
 
 # Datahaku Norjan taajuudelle
 def fetch_data():
@@ -65,22 +71,11 @@ def update_data():
     st.session_state.last_updated = datetime.utcnow()
     st.session_state.last_fetch_time = datetime.utcnow()
 
-# Välilehdet
-tab1, tab2, tab3 = st.tabs(["Kaavio", "Taulukko", "Suomen taajuus"])
-
-# Yläpalkki: kellonäyttö
-with st.container():
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown("### UTC-aika")
-        st.markdown(f"<h4>{datetime.utcnow().strftime('%H:%M:%S')}</h4>", unsafe_allow_html=True)
-    with col2:
-        helsinki_time = datetime.now(pytz.timezone("Europe/Helsinki"))
-        st.markdown("### Suomen aika")
-        st.markdown(f"<h4>{helsinki_time.strftime('%H:%M:%S')}</h4>", unsafe_allow_html=True)
+# Välilehdet (piilotetaan Taulukko-välilehti)
+tab1, tab3 = st.tabs(["Kaavio", "Suomen taajuus"])
 
 # Painikkeet
-st.markdown("### Valinnat")
+st.markdown("<h4 style='text-align: center;'>Valinnat</h4>", unsafe_allow_html=True)
 button_cols = st.columns([1, 1, 1, 1, 2], gap="small")
 
 with button_cols[0]:
@@ -155,13 +150,6 @@ with tab1:
         st.plotly_chart(fig, use_container_width=True)
     else:
         st.warning("Ei dataa valitulla aikavälillä.")
-
-# Taulukko
-with tab2:
-    show_table = st.checkbox("Näytä taulukko", value=False)
-    if show_table and not filtered.empty:
-        sorted_table = filtered.sort_values(by="Timestamp", ascending=False).reset_index(drop=True)
-        st.dataframe(sorted_table[["Timestamp", "FrequencyHz"]], use_container_width=True)
 
 # Suomen taajuus (Fingridin data)
 with tab3:
