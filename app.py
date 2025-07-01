@@ -127,14 +127,14 @@ with tab1:
         fig.add_shape(
             type="rect", xref="x", yref="y",
             x0=filtered["Timestamp"].min(), x1=filtered["Timestamp"].max(),
-            y0=y_axis_min, y1=min(49.97, y_axis_max),
+            y0=y_axis_min, y1=min(49.95, y_axis_max),
             fillcolor="rgba(255,0,0,0.1)", line_width=0, layer="below"
         )
 
         fig.add_shape(
             type="rect", xref="x", yref="y",
             x0=filtered["Timestamp"].min(), x1=filtered["Timestamp"].max(),
-            y0=max(50.03, y_axis_min), y1=y_axis_max,
+            y0=max(50.05, y_axis_min), y1=y_axis_max,
             fillcolor="rgba(0,0,255,0.1)", line_width=0, layer="below"
         )
 
