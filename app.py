@@ -72,7 +72,7 @@ def update_data():
     st.session_state.last_fetch_time = datetime.utcnow()
 
 # Välilehdet (piilotetaan Taulukko-välilehti)
-tab1, tab3, tab4 = st.tabs(["Nordic Hz", "Suomen Hz", "Ruotsin Hz"])
+tab1, tab3 = st.tabs(["Nordic Hz", "Suomen Hz"])
 
 # Painikkeet
 st.markdown("<h4 style='text-align: center;'>Valinnat</h4>", unsafe_allow_html=True)
@@ -114,7 +114,7 @@ interval_minutes = {"10 min": 10, "30 min": 30, "1 h": 60}
 cutoff = datetime.utcnow() - timedelta(minutes=interval_minutes[st.session_state.interval])
 filtered = data[data["Timestamp"] >= cutoff]
 
-# Kaavio Norja
+# Kaavio
 with tab1:
     if not filtered.empty:
         y_min = filtered["FrequencyHz"].min()
@@ -206,56 +206,3 @@ with tab3:
         st.plotly_chart(fig_fi, use_container_width=True)
     else:
         st.warning("Ei dataa saatavilla Fingridiltä.")
-
-# Ruotsin taajuus (Kontrollrummet API)
-with tab4:
-    try:
-        now = int(datetime.utcnow().timestamp() * 1000)
-        one_hour_ago = now - interval_minutes[st.session_state.interval] * 60 * 1000
-        url = f"https://www.svk.se/kontrollrummet/api/frequency?lower_unix={one_hour_ago}&upper_unix={now}"
-        response = requests.get(url)
-        response.raise_for_status()
-        se_data = response.json()
-        df_se = pd.DataFrame(se_data)
-        df_se["Timestamp"] = pd.to_datetime(df_se["timestamp"], unit="ms")
-        df_se["FrequencyHz"] = df_se["frequency"]
-        filtered_se = df_se[["Timestamp", "FrequencyHz"]]
-    except Exception as e:
-        st.error(f"Virhe haettaessa Ruotsin dataa: {e}")
-        filtered_se = pd.DataFrame()
-
-    if not filtered_se.empty:
-        y_min = filtered_se["FrequencyHz"].min()
-        y_max = filtered_se["FrequencyHz"].max()
-        y_axis_min = y_min - 0.05
-        y_axis_max = y_max + 0.05
-
-        fig_se = go.Figure()
-
-        fig_se.add_shape(
-            type="rect", xref="x", yref="y",
-            x0=filtered_se["Timestamp"].min(), x1=filtered_se["Timestamp"].max(),
-            y0=y_axis_min, y1=min(49.97, y_axis_max),
-            fillcolor="rgba(255,0,0,0.1)", line_width=0, layer="below"
-        )
-
-        fig_se.add_shape(
-            type="rect", xref="x", yref="y",
-            x0=filtered_se["Timestamp"].min(), x1=filtered_se["Timestamp"].max(),
-            y0=max(50.03, y_axis_min), y1=y_axis_max,
-            fillcolor="rgba(0,0,255,0.1)", line_width=0, layer="below"
-        )
-
-        fig_se.add_trace(go.Scatter(x=filtered_se["Timestamp"], y=filtered_se["FrequencyHz"],
-                                    mode="lines+markers", line=dict(color="black")))
-
-        fig_se.update_layout(
-            xaxis_title="Aika (UTC)",
-            yaxis_title="Taajuus (Hz)",
-            height=600,
-            margin=dict(t=10)
-        )
-        st.plotly_chart(fig_se, use_container_width=True)
-    else:
-        st.warning("Ei dataa saatavilla Ruotsista.")
-
