@@ -119,8 +119,8 @@ with tab1:
     if not filtered.empty:
         y_min = filtered["FrequencyHz"].min()
         y_max = filtered["FrequencyHz"].max()
-        y_axis_min = y_min - 0.05
-        y_axis_max = y_max + 0.05
+        y_axis_min = y_min - 0.02
+        y_axis_max = y_max + 0.02
 
         fig = go.Figure()
 
