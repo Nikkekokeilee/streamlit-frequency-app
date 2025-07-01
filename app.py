@@ -14,6 +14,7 @@ if "FINGRID_API_KEY" not in st.secrets:
     st.error("Fingridin API-avainta ei ole määritetty. Lisää se tiedostoon .streamlit/secrets.toml avaimella 'FINGRID_API_KEY'.")
     st.stop()
 
+# ✅ Hae avain käyttöön
 api_key = st.secrets["FINGRID_API_KEY"]
 
 # Sessioasetukset
@@ -28,60 +29,35 @@ if "data" not in st.session_state:
 if "last_fetch_time" not in st.session_state:
     st.session_state.last_fetch_time = datetime.min
 
-# Aikavyöhykkeet
-helsinki_tz = pytz.timezone("Europe/Helsinki")
-utc_now = datetime.utcnow()
-helsinki_now = utc_now.replace(tzinfo=pytz.utc).astimezone(helsinki_tz)
-
-# Näytä kellot
-st.markdown(f"### ⏰ UTC: {utc_now.strftime('%H:%M:%S')} | Suomen aika: {helsinki_now.strftime('%H:%M:%S')}")
-
-# Painikkeet
-st.markdown("#### Valinnat")
-button_cols = st.columns([1, 1, 1, 1, 2], gap="small")
-
-with button_cols[0]:
-    if st.button("10 min"):
-        st.session_state.interval = "10 min"
-with button_cols[1]:
-    if st.button("30 min"):
-        st.session_state.interval = "30 min"
-with button_cols[2]:
-    if st.button("1 h"):
-        st.session_state.interval = "1 h"
-with button_cols[3]:
-    if st.button("Päivitä"):
-        st.session_state.data = None
-with button_cols[4]:
-    st.session_state.auto_refresh = st.checkbox("Automaattipäivitys (1 min)", value=st.session_state.auto_refresh)
-
-# Automaattinen päivitys
-if st.session_state.auto_refresh:
-    now = datetime.utcnow()
-    if (now - st.session_state.last_fetch_time).total_seconds() > 60:
-        st.session_state.data = None
-
-# Aikaväli
-interval_minutes = {"10 min": 10, "30 min": 30, "1 h": 60}
-cutoff = datetime.utcnow() - timedelta(minutes=interval_minutes[st.session_state.interval])
+# Kello
+col1, col2 = st.columns(2)
+with col1:
+    st.markdown(f"**UTC-aika:** {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}")
+with col2:
+    helsinki_time = datetime.now(pytz.timezone("Europe/Helsinki"))
+    st.markdown(f"**Suomen aika:** {helsinki_time.strftime('%Y-%m-%d %H:%M:%S')}")
 
 # Datahaku Norjan taajuudelle
-@st.cache_data(ttl=60)
 def fetch_norway_data():
     now = datetime.utcnow()
     start_time = now - timedelta(hours=1)
     from_param = start_time.strftime("%Y-%m-%d")
     url = f"https://driftsdata.statnett.no/restapi/Frequency/BySecond?From={from_param}"
+
     response = requests.get(url)
     response.raise_for_status()
     data = response.json()
+
     start_point_utc = data["StartPointUTC"]
     period_tick_ms = data["PeriodTickMs"]
     measurements = data["Measurements"]
+
     if not measurements:
         return pd.DataFrame()
+
     start_dt = datetime(1970, 1, 1) + timedelta(milliseconds=start_point_utc)
     period_sec = period_tick_ms / 1000
+
     df = pd.DataFrame(measurements, columns=["FrequencyHz"])
     df["Index"] = df.index
     df["Timestamp"] = df["Index"].apply(lambda i: start_dt + timedelta(seconds=i * period_sec))
@@ -89,12 +65,13 @@ def fetch_norway_data():
     df["Time_10s"] = df["Timestamp"].dt.floor("10S")
     grouped = df.groupby("Time_10s").agg(FrequencyHz=("FrequencyHz", "mean")).reset_index()
     grouped.rename(columns={"Time_10s": "Timestamp"}, inplace=True)
+
     return grouped
 
-# Datahaku Suomen taajuudelle
-@st.cache_data(ttl=60)
+# Suomen taajuus Fingridiltä
 def fetch_finland_data():
     now = datetime.utcnow()
+    interval_minutes = {"10 min": 10, "30 min": 30, "1 h": 60}
     start_time = now - timedelta(minutes=interval_minutes[st.session_state.interval])
     fingrid_url = (
         f"https://data.fingrid.fi/api/datasets/177/data?"
@@ -109,8 +86,7 @@ def fetch_finland_data():
     df_fi["FrequencyHz"] = df_fi["value"]
     return df_fi[["Timestamp", "FrequencyHz"]]
 
-# Datahaku Ruotsin taajuudelle (Kontrollrummet)
-@st.cache_data(ttl=60)
+# Ruotsin taajuus Kontrollrummetista
 def fetch_sweden_data():
     now = int(time.time() * 1000)
     one_hour_ago = now - 60 * 60 * 1000
@@ -121,66 +97,115 @@ def fetch_sweden_data():
     df = pd.DataFrame(data)
     df["Timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
     df["FrequencyHz"] = df["frequency"]
-    return df[["Timestamp", "FrequencyHz"]]
+    df = df[["Timestamp", "FrequencyHz"]]
+    return df
 
-# Piirrä kaavio
+# Päivitä data
+def update_data():
+    st.session_state.data = fetch_norway_data()
+    st.session_state.last_updated = datetime.utcnow()
+    st.session_state.last_fetch_time = datetime.utcnow()
+
+# Painikkeet
+st.markdown("### Valinnat")
+button_cols = st.columns([1, 1, 1, 1, 2], gap="small")
+
+with button_cols[0]:
+    if st.button("10 min"):
+        st.session_state.interval = "10 min"
+with button_cols[1]:
+    if st.button("30 min"):
+        st.session_state.interval = "30 min"
+with button_cols[2]:
+    if st.button("1 h"):
+        st.session_state.interval = "1 h"
+with button_cols[3]:
+    if st.button("Päivitä"):
+        update_data()
+with button_cols[4]:
+    st.session_state.auto_refresh = st.checkbox("Automaattipäivitys (1 min)", value=st.session_state.auto_refresh)
+
+# Automaattinen päivitys
+if st.session_state.auto_refresh:
+    now = datetime.utcnow()
+    if (now - st.session_state.last_fetch_time).total_seconds() > 60:
+        update_data()
+
+# Päivitysaika
+if st.session_state.last_updated:
+    st.caption(f"Viimeisin päivitys: {st.session_state.last_updated.strftime('%H:%M:%S')} UTC")
+
+# Haetaan data tarvittaessa
+if st.session_state.data is None:
+    update_data()
+
+data = st.session_state.data
+
+# Suodatus
+interval_minutes = {"10 min": 10, "30 min": 30, "1 h": 60}
+cutoff = datetime.utcnow() - timedelta(minutes=interval_minutes[st.session_state.interval])
+filtered = data[data["Timestamp"] >= cutoff]
+
+# Välilehdet
+tab1, tab3, tab4 = st.tabs(["Norjan taajuus", "Suomen taajuus", "Ruotsin taajuus"])
+
+# Kaaviofunktio
 def plot_frequency(df, title):
-    if df.empty:
-        st.warning("Ei dataa valitulla aikavälillä.")
-        return
-    filtered = df[df["Timestamp"] >= cutoff]
-    if filtered.empty:
-        st.warning("Ei dataa valitulla aikavälillä.")
-        return
-    y_min = filtered["FrequencyHz"].min()
-    y_max = filtered["FrequencyHz"].max()
-    y_axis_min = y_min - 0.05
-    y_axis_max = y_max + 0.05
-    fig = go.Figure()
-    fig.add_shape(
-        type="rect", xref="x", yref="y",
-        x0=filtered["Timestamp"].min(), x1=filtered["Timestamp"].max(),
-        y0=y_axis_min, y1=min(49.97, y_axis_max),
-        fillcolor="rgba(255,0,0,0.1)", line_width=0, layer="below"
-    )
-    fig.add_shape(
-        type="rect", xref="x", yref="y",
-        x0=filtered["Timestamp"].min(), x1=filtered["Timestamp"].max(),
-        y0=max(50.03, y_axis_min), y1=y_axis_max,
-        fillcolor="rgba(0,0,255,0.1)", line_width=0, layer="below"
-    )
-    fig.add_trace(go.Scatter(x=filtered["Timestamp"], y=filtered["FrequencyHz"],
-                             mode="lines+markers", line=dict(color="black")))
-    fig.update_layout(
-        title=title,
-        xaxis_title="Aika (UTC)",
-        yaxis_title="Taajuus (Hz)",
-        height=600,
-        margin=dict(t=10)
-    )
-    st.plotly_chart(fig, use_container_width=True)
+    if not df.empty:
+        y_min = df["FrequencyHz"].min()
+        y_max = df["FrequencyHz"].max()
+        y_axis_min = y_min - 0.05
+        y_axis_max = y_max + 0.05
 
-# Välilehdet (piilotetaan taulukko)
-tab1, tab3, tab4 = st.tabs(["Taajuuskaavio", "Suomen Hz", "Ruotsin Hz"])
+        fig = go.Figure()
 
+        fig.add_shape(
+            type="rect", xref="x", yref="y",
+            x0=df["Timestamp"].min(), x1=df["Timestamp"].max(),
+            y0=y_axis_min, y1=min(49.97, y_axis_max),
+            fillcolor="rgba(255,0,0,0.1)", line_width=0, layer="below"
+        )
+
+        fig.add_shape(
+            type="rect", xref="x", yref="y",
+            x0=df["Timestamp"].min(), x1=df["Timestamp"].max(),
+            y0=max(50.03, y_axis_min), y1=y_axis_max,
+            fillcolor="rgba(0,0,255,0.1)", line_width=0, layer="below"
+        )
+
+        fig.add_trace(go.Scatter(x=df["Timestamp"], y=df["FrequencyHz"],
+                                 mode="lines+markers", line=dict(color="black")))
+
+        fig.update_layout(
+            title=title,
+            xaxis_title="Aika (UTC)",
+            yaxis_title="Taajuus (Hz)",
+            height=600,
+            margin=dict(t=10)
+        )
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.warning("Ei dataa valitulla aikavälillä.")
+
+# Norjan kaavio
 with tab1:
-    try:
-        df_norway = fetch_norway_data()
-        plot_frequency(df_norway, "Norjan taajuus")
-    except Exception as e:
-        st.error(f"Virhe Norjan datassa: {e}")
+    plot_frequency(filtered, "Norjan taajuus")
 
+# Suomen kaavio
 with tab3:
     try:
-        df_finland = fetch_finland_data()
-        plot_frequency(df_finland, "Suomen taajuus")
+        fi_data = fetch_finland_data()
+        fi_filtered = fi_data[fi_data["Timestamp"] >= cutoff]
+        plot_frequency(fi_filtered, "Suomen taajuus")
     except Exception as e:
-        st.error(f"Virhe Suomen datassa: {e}")
+        st.error(f"Virhe haettaessa Fingridin dataa: {e}")
 
+# Ruotsin kaavio
 with tab4:
     try:
-        df_sweden = fetch_sweden_data()
-        plot_frequency(df_sweden, "Ruotsin taajuus")
+        se_data = fetch_sweden_data()
+        se_filtered = se_data[se_data["Timestamp"] >= cutoff]
+        plot_frequency(se_filtered, "Ruotsin taajuus")
     except Exception as e:
-        st.error(f"Virhe Ruotsin datassa: {e}")
+        st.error(f"Virhe haettaessa Ruotsin dataa: {e}")
 
