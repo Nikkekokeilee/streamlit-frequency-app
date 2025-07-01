@@ -72,7 +72,7 @@ def update_data():
     st.session_state.last_fetch_time = datetime.utcnow()
 
 # Välilehdet (piilotetaan Taulukko-välilehti)
-tab1, tab3 = st.tabs(["Kaavio", "Suomen taajuus"])
+tab1, tab3 = st.tabs(["Nordic Hz", "Suomen Hz"])
 
 # Painikkeet
 st.markdown("<h4 style='text-align: center;'>Valinnat</h4>", unsafe_allow_html=True)
