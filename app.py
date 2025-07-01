@@ -1,5 +1,4 @@
-# Create a clean version of app.py with proper API key validation and no non-printable characters
-app_code = '''import streamlit as st
+import streamlit as st
 import pandas as pd
 import numpy as np
 import requests
@@ -8,15 +7,14 @@ import plotly.graph_objects as go
 
 st.set_page_config(layout="wide")
 
-# ✅ Tarkista, että API-avain on määritetty
+# ✅ Validate API key
 if "FINGRID_API_KEY" not in st.secrets:
     st.error("Fingridin API-avainta ei ole määritetty. Lisää se tiedostoon .streamlit/secrets.toml avaimella 'FINGRID_API_KEY'.")
     st.stop()
 
-# ✅ Hae avain käyttöön
 api_key = st.secrets["FINGRID_API_KEY"]
 
-# Sessioasetukset
+# Session state initialization
 if "interval" not in st.session_state:
     st.session_state.interval = "1 h"
 if "last_updated" not in st.session_state:
@@ -28,7 +26,7 @@ if "data" not in st.session_state:
 if "last_fetch_time" not in st.session_state:
     st.session_state.last_fetch_time = datetime.min
 
-# Datahaku Norjan taajuudelle
+# Fetch data from Statnett
 def fetch_data():
     now = datetime.utcnow()
     start_time = now - timedelta(hours=1)
@@ -59,16 +57,16 @@ def fetch_data():
 
     return grouped
 
-# Päivitä data
+# Update data
 def update_data():
     st.session_state.data = fetch_data()
     st.session_state.last_updated = datetime.utcnow()
     st.session_state.last_fetch_time = datetime.utcnow()
 
-# Välilehdet
+# Tabs
 tab1, tab2, tab3 = st.tabs(["Kaavio", "Taulukko", "Suomen taajuus"])
 
-# Painikkeet
+# Controls
 st.markdown("<h4 style='text-align: center;'>Valinnat</h4>", unsafe_allow_html=True)
 button_cols = st.columns([1, 1, 1, 1, 2], gap="small")
 
@@ -87,28 +85,28 @@ with button_cols[3]:
 with button_cols[4]:
     st.session_state.auto_refresh = st.checkbox("Automaattipäivitys (1 min)", value=st.session_state.auto_refresh)
 
-# Automaattinen päivitys
+# Auto refresh
 if st.session_state.auto_refresh:
     now = datetime.utcnow()
     if (now - st.session_state.last_fetch_time).total_seconds() > 60:
         update_data()
 
-# Päivitysaika
+# Last updated
 if st.session_state.last_updated:
     st.caption(f"Viimeisin päivitys: {st.session_state.last_updated.strftime('%H:%M:%S')} UTC")
 
-# Haetaan data tarvittaessa
+# Initial data fetch
 if st.session_state.data is None:
     update_data()
 
 data = st.session_state.data
 
-# Suodatus
+# Filter data
 interval_minutes = {"10 min": 10, "30 min": 30, "1 h": 60}
 cutoff = datetime.utcnow() - timedelta(minutes=interval_minutes[st.session_state.interval])
 filtered = data[data["Timestamp"] >= cutoff]
 
-# Kaavio
+# Chart tab
 with tab1:
     if not filtered.empty:
         y_min = filtered["FrequencyHz"].min()
@@ -145,26 +143,26 @@ with tab1:
     else:
         st.warning("Ei dataa valitulla aikavälillä.")
 
-# Taulukko
+# Table tab
 with tab2:
     sorted_table = filtered.sort_values(by="Timestamp", ascending=False).reset_index(drop=True)
     st.dataframe(sorted_table[["Timestamp", "FrequencyHz"]], use_container_width=True)
 
-# Suomen taajuus (oikea data Fingridiltä)
+# Fingrid frequency tab
 with tab3:
     now = datetime.utcnow()
     start_time = now - timedelta(minutes=interval_minutes[st.session_state.interval])
     fingrid_url = (
-        f"https://api.fingrid.fi/v1/variable/124/events/json?"
-        f"start_time={start_time.isoformat()}Z&end_time={now.isoformat()}Z"
+        f"https://data.fingrid.fi/api/datasets/177/data?"
+        f"startTime={start_time.isoformat()}Z&endTime={now.isoformat()}Z"
     )
     headers = {"x-api-key": api_key}
     try:
         response = requests.get(fingrid_url, headers=headers)
         response.raise_for_status()
         fi_data = response.json()
-        df_fi = pd.DataFrame(fi_data)
-        df_fi["Timestamp"] = pd.to_datetime(df_fi["start_time"])
+        df_fi = pd.DataFrame(fi_data["data"])
+        df_fi["Timestamp"] = pd.to_datetime(df_fi["startTime"])
         df_fi["FrequencyHz"] = df_fi["value"]
         filtered_fi = df_fi[["Timestamp", "FrequencyHz"]]
     except Exception as e:
@@ -205,11 +203,4 @@ with tab3:
         st.plotly_chart(fig_fi, use_container_width=True)
     else:
         st.warning("Ei dataa saatavilla Fingridiltä.")
-'''
-
-# Save to app.py
-with open("app.py", "w", encoding="utf-8") as f:
-    f.write(app_code)
-
-print("Korjattu app.py on tallennettu.")
 
