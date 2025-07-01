@@ -3,9 +3,8 @@ import pandas as pd
 import numpy as np
 import requests
 from datetime import datetime, timedelta
-import plotly.graph_objects as go
 import pytz
-import time
+import plotly.graph_objects as go
 
 st.set_page_config(layout="wide")
 
@@ -29,16 +28,14 @@ if "data" not in st.session_state:
 if "last_fetch_time" not in st.session_state:
     st.session_state.last_fetch_time = datetime.min
 
-# Kello
-col1, col2 = st.columns(2)
-with col1:
-    st.markdown(f"**UTC-aika:** {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}")
-with col2:
-    helsinki_time = datetime.now(pytz.timezone("Europe/Helsinki"))
-    st.markdown(f"**Suomen aika:** {helsinki_time.strftime('%Y-%m-%d %H:%M:%S')}")
+# Näytä kello UTC ja Suomen ajassa
+utc_now = datetime.utcnow()
+helsinki_tz = pytz.timezone("Europe/Helsinki")
+helsinki_now = utc_now.replace(tzinfo=pytz.utc).astimezone(helsinki_tz)
+st.markdown(f"### ⏰ UTC: {utc_now.strftime('%H:%M:%S')} | Suomen aika: {helsinki_now.strftime('%H:%M:%S')}")
 
 # Datahaku Norjan taajuudelle
-def fetch_norway_data():
+def fetch_data():
     now = datetime.utcnow()
     start_time = now - timedelta(hours=1)
     from_param = start_time.strftime("%Y-%m-%d")
@@ -68,46 +65,17 @@ def fetch_norway_data():
 
     return grouped
 
-# Suomen taajuus Fingridiltä
-def fetch_finland_data():
-    now = datetime.utcnow()
-    interval_minutes = {"10 min": 10, "30 min": 30, "1 h": 60}
-    start_time = now - timedelta(minutes=interval_minutes[st.session_state.interval])
-    fingrid_url = (
-        f"https://data.fingrid.fi/api/datasets/177/data?"
-        f"startTime={start_time.isoformat()}Z&endTime={now.isoformat()}Z"
-    )
-    headers = {"x-api-key": api_key}
-    response = requests.get(fingrid_url, headers=headers)
-    response.raise_for_status()
-    fi_data = response.json()
-    df_fi = pd.DataFrame(fi_data["data"])
-    df_fi["Timestamp"] = pd.to_datetime(df_fi["startTime"])
-    df_fi["FrequencyHz"] = df_fi["value"]
-    return df_fi[["Timestamp", "FrequencyHz"]]
-
-# Ruotsin taajuus Kontrollrummetista
-def fetch_sweden_data():
-    now = int(time.time() * 1000)
-    one_hour_ago = now - 60 * 60 * 1000
-    url = f"https://www.svk.se/kontrollrummet/api/frequency?lower_unix={one_hour_ago}&upper_unix={now}"
-    response = requests.get(url)
-    response.raise_for_status()
-    data = response.json()
-    df = pd.DataFrame(data)
-    df["Timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
-    df["FrequencyHz"] = df["frequency"]
-    df = df[["Timestamp", "FrequencyHz"]]
-    return df
-
 # Päivitä data
 def update_data():
-    st.session_state.data = fetch_norway_data()
+    st.session_state.data = fetch_data()
     st.session_state.last_updated = datetime.utcnow()
     st.session_state.last_fetch_time = datetime.utcnow()
 
+# Välilehdet (piilotetaan Taulukko-välilehti)
+tab1, tab3 = st.tabs(["Nordic Hz", "Suomen Hz"])
+
 # Painikkeet
-st.markdown("### Valinnat")
+st.markdown("<h4 style='text-align: center;'>Valinnat</h4>", unsafe_allow_html=True)
 button_cols = st.columns([1, 1, 1, 1, 2], gap="small")
 
 with button_cols[0]:
@@ -146,14 +114,11 @@ interval_minutes = {"10 min": 10, "30 min": 30, "1 h": 60}
 cutoff = datetime.utcnow() - timedelta(minutes=interval_minutes[st.session_state.interval])
 filtered = data[data["Timestamp"] >= cutoff]
 
-# Välilehdet
-tab1, tab3, tab4 = st.tabs(["Norjan taajuus", "Suomen taajuus", "Ruotsin taajuus"])
-
-# Kaaviofunktio
-def plot_frequency(df, title):
-    if not df.empty:
-        y_min = df["FrequencyHz"].min()
-        y_max = df["FrequencyHz"].max()
+# Kaavio
+with tab1:
+    if not filtered.empty:
+        y_min = filtered["FrequencyHz"].min()
+        y_max = filtered["FrequencyHz"].max()
         y_axis_min = y_min - 0.05
         y_axis_max = y_max + 0.05
 
@@ -161,23 +126,22 @@ def plot_frequency(df, title):
 
         fig.add_shape(
             type="rect", xref="x", yref="y",
-            x0=df["Timestamp"].min(), x1=df["Timestamp"].max(),
+            x0=filtered["Timestamp"].min(), x1=filtered["Timestamp"].max(),
             y0=y_axis_min, y1=min(49.97, y_axis_max),
             fillcolor="rgba(255,0,0,0.1)", line_width=0, layer="below"
         )
 
         fig.add_shape(
             type="rect", xref="x", yref="y",
-            x0=df["Timestamp"].min(), x1=df["Timestamp"].max(),
+            x0=filtered["Timestamp"].min(), x1=filtered["Timestamp"].max(),
             y0=max(50.03, y_axis_min), y1=y_axis_max,
             fillcolor="rgba(0,0,255,0.1)", line_width=0, layer="below"
         )
 
-        fig.add_trace(go.Scatter(x=df["Timestamp"], y=df["FrequencyHz"],
+        fig.add_trace(go.Scatter(x=filtered["Timestamp"], y=filtered["FrequencyHz"],
                                  mode="lines+markers", line=dict(color="black")))
 
         fig.update_layout(
-            title=title,
             xaxis_title="Aika (UTC)",
             yaxis_title="Taajuus (Hz)",
             height=600,
@@ -187,25 +151,58 @@ def plot_frequency(df, title):
     else:
         st.warning("Ei dataa valitulla aikavälillä.")
 
-# Norjan kaavio
-with tab1:
-    plot_frequency(filtered, "Norjan taajuus")
-
-# Suomen kaavio
+# Suomen taajuus (Fingridin data)
 with tab3:
+    now = datetime.utcnow()
+    start_time = now - timedelta(minutes=interval_minutes[st.session_state.interval])
+    fingrid_url = (
+        f"https://data.fingrid.fi/api/datasets/177/data?"
+        f"startTime={start_time.isoformat()}Z&endTime={now.isoformat()}Z"
+    )
+    headers = {"x-api-key": api_key}
     try:
-        fi_data = fetch_finland_data()
-        fi_filtered = fi_data[fi_data["Timestamp"] >= cutoff]
-        plot_frequency(fi_filtered, "Suomen taajuus")
+        response = requests.get(fingrid_url, headers=headers)
+        response.raise_for_status()
+        fi_data = response.json()
+        df_fi = pd.DataFrame(fi_data["data"])
+        df_fi["Timestamp"] = pd.to_datetime(df_fi["startTime"])
+        df_fi["FrequencyHz"] = df_fi["value"]
+        filtered_fi = df_fi[["Timestamp", "FrequencyHz"]]
     except Exception as e:
         st.error(f"Virhe haettaessa Fingridin dataa: {e}")
+        filtered_fi = pd.DataFrame()
 
-# Ruotsin kaavio
-with tab4:
-    try:
-        se_data = fetch_sweden_data()
-        se_filtered = se_data[se_data["Timestamp"] >= cutoff]
-        plot_frequency(se_filtered, "Ruotsin taajuus")
-    except Exception as e:
-        st.error(f"Virhe haettaessa Ruotsin dataa: {e}")
+    if not filtered_fi.empty:
+        y_min = filtered_fi["FrequencyHz"].min()
+        y_max = filtered_fi["FrequencyHz"].max()
+        y_axis_min = y_min - 0.05
+        y_axis_max = y_max + 0.05
 
+        fig_fi = go.Figure()
+
+        fig_fi.add_shape(
+            type="rect", xref="x", yref="y",
+            x0=filtered_fi["Timestamp"].min(), x1=filtered_fi["Timestamp"].max(),
+            y0=y_axis_min, y1=min(49.97, y_axis_max),
+            fillcolor="rgba(255,0,0,0.1)", line_width=0, layer="below"
+        )
+
+        fig_fi.add_shape(
+            type="rect", xref="x", yref="y",
+            x0=filtered_fi["Timestamp"].min(), x1=filtered_fi["Timestamp"].max(),
+            y0=max(50.03, y_axis_min), y1=y_axis_max,
+            fillcolor="rgba(0,0,255,0.1)", line_width=0, layer="below"
+        )
+
+        fig_fi.add_trace(go.Scatter(x=filtered_fi["Timestamp"], y=filtered_fi["FrequencyHz"],
+                                    mode="lines+markers", line=dict(color="black")))
+
+        fig_fi.update_layout(
+            xaxis_title="Aika (UTC)",
+            yaxis_title="Taajuus (Hz)",
+            height=600,
+            margin=dict(t=10)
+        )
+        st.plotly_chart(fig_fi, use_container_width=True)
+    else:
+        st.warning("Ei dataa saatavilla Fingridiltä.")
