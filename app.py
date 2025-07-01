@@ -31,7 +31,7 @@ api_key = st.secrets["FINGRID_API_KEY"]
 # Aikaväli
 interval_minutes = {"10 min": 10, "30 min": 30, "1 h": 60}
 
-# Hae Norjan data
+# Norjan taajuusdata
 def fetch_norway_data():
     now = datetime.utcnow()
     start_time = now - timedelta(hours=1)
@@ -62,7 +62,7 @@ def fetch_norway_data():
 
     return grouped
 
-# Hae Suomen data Fingridiltä
+# Fingridin data välimuistilla
 @st.cache_data(ttl=180)
 def fetch_fingrid_data():
     try:
@@ -79,11 +79,10 @@ def fetch_fingrid_data():
         df_fi = pd.DataFrame(fi_data)
         df_fi["Timestamp"] = pd.to_datetime(df_fi["startTime"], errors="coerce")
         df_fi["FrequencyHz"] = df_fi["value"]
-        if df_fi["Timestamp"].isnull().all():
-            return pd.DataFrame()
-        return df_fi[["Timestamp", "FrequencyHz"]]
+        df_fi = df_fi[["Timestamp", "FrequencyHz"]].dropna()
+        return df_fi
     except Exception as e:
-        st.warning(f"Virhe haettaessa Fingridin dataa: {e}")
+        st.error(f"Virhe haettaessa Fingridin dataa: {e}")
         return pd.DataFrame()
 
 # Päivitä data
@@ -97,21 +96,28 @@ def update_data():
 tab1, tab2, tab3 = st.tabs(["Kaavio", "Taulukko", "Suomen taajuus"])
 
 # Valinnat
-st.markdown("### Valinnat")
-col1, col2, col3, col4, col5 = st.columns([1, 1, 1, 1, 2])
+st.markdown("### Näytettävät viivat")
+col1, col2 = st.columns(2)
 with col1:
+    show_norja = st.checkbox("Näytä Norjan taajuus", value=True)
+with col2:
+    show_suomi = st.checkbox("Näytä Suomen taajuus", value=True)
+
+# Painikkeet
+button_cols = st.columns([1, 1, 1, 1, 2], gap="small")
+with button_cols[0]:
     if st.button("10 min"):
         st.session_state.interval = "10 min"
-with col2:
+with button_cols[1]:
     if st.button("30 min"):
         st.session_state.interval = "30 min"
-with col3:
+with button_cols[2]:
     if st.button("1 h"):
         st.session_state.interval = "1 h"
-with col4:
+with button_cols[3]:
     if st.button("Päivitä"):
         update_data()
-with col5:
+with button_cols[4]:
     st.session_state.auto_refresh = st.checkbox("Automaattipäivitys (1 min)", value=st.session_state.auto_refresh)
 
 # Automaattinen päivitys
@@ -125,7 +131,7 @@ if st.session_state.last_updated:
     st.caption(f"Viimeisin päivitys: {st.session_state.last_updated.strftime('%H:%M:%S')} UTC")
 
 # Haetaan data tarvittaessa
-if st.session_state.data is None or st.session_state.filtered_fi.empty:
+if st.session_state.data is None:
     update_data()
 
 data = st.session_state.data
@@ -133,74 +139,68 @@ filtered_fi = st.session_state.filtered_fi
 
 # Suodatus
 cutoff = datetime.utcnow() - timedelta(minutes=interval_minutes[st.session_state.interval])
-filtered = data[data["Timestamp"] >= cutoff] if not data.empty else pd.DataFrame()
-filtered_fi = filtered_fi[filtered_fi["Timestamp"] >= cutoff] if not filtered_fi.empty else pd.DataFrame()
+filtered = data[data["Timestamp"] >= cutoff]
+if not filtered_fi.empty and "Timestamp" in filtered_fi.columns:
+    filtered_fi = filtered_fi[filtered_fi["Timestamp"] >= cutoff]
+else:
+    filtered_fi = pd.DataFrame()
 
 # Kaavio
 with tab1:
-    st.markdown("### Näytettävät viivat")
-    c1, c2 = st.columns(2)
-    with c1:
-        show_norja = st.checkbox("Näytä Norjan taajuus", value=True)
-    with c2:
-        show_suomi = st.checkbox("Näytä Suomen taajuus", value=True)
+    if not filtered.empty or not filtered_fi.empty:
+        y_min = min(
+            filtered["FrequencyHz"].min() if not filtered.empty else np.inf,
+            filtered_fi["FrequencyHz"].min() if not filtered_fi.empty else np.inf
+        )
+        y_max = max(
+            filtered["FrequencyHz"].max() if not filtered.empty else -np.inf,
+            filtered_fi["FrequencyHz"].max() if not filtered_fi.empty else -np.inf
+        )
+        y_axis_min = y_min - 0.05
+        y_axis_max = y_max + 0.05
 
-    if show_norja or show_suomi:
         fig = go.Figure()
+
+        fig.add_shape(
+            type="rect", xref="x", yref="y",
+            x0=cutoff, x1=datetime.utcnow(),
+            y0=y_axis_min, y1=min(49.97, y_axis_max),
+            fillcolor="rgba(255,0,0,0.1)", line_width=0, layer="below"
+        )
+
+        fig.add_shape(
+            type="rect", xref="x", yref="y",
+            x0=cutoff, x1=datetime.utcnow(),
+            y0=max(50.03, y_axis_min), y1=y_axis_max,
+            fillcolor="rgba(0,0,255,0.1)", line_width=0, layer="below"
+        )
 
         if show_norja and not filtered.empty:
             fig.add_trace(go.Scatter(x=filtered["Timestamp"], y=filtered["FrequencyHz"],
                                      mode="lines+markers", name="Norja", line=dict(color="black")))
-
         if show_suomi and not filtered_fi.empty:
             fig.add_trace(go.Scatter(x=filtered_fi["Timestamp"], y=filtered_fi["FrequencyHz"],
                                      mode="lines+markers", name="Suomi", line=dict(color="blue")))
 
-        y_values = pd.concat([filtered["FrequencyHz"], filtered_fi["FrequencyHz"]], ignore_index=True)
-        if not y_values.empty:
-            y_min = y_values.min()
-            y_max = y_values.max()
-            y_axis_min = y_min - 0.05
-            y_axis_max = y_max + 0.05
-
-            fig.add_shape(
-                type="rect", xref="x", yref="y",
-                x0=cutoff, x1=datetime.utcnow(),
-                y0=y_axis_min, y1=min(49.97, y_axis_max),
-                fillcolor="rgba(255,0,0,0.1)", line_width=0, layer="below"
-            )
-            fig.add_shape(
-                type="rect", xref="x", yref="y",
-                x0=cutoff, x1=datetime.utcnow(),
-                y0=max(50.03, y_axis_min), y1=y_axis_max,
-                fillcolor="rgba(0,0,255,0.1)", line_width=0, layer="below"
-            )
-
-            fig.update_layout(
-                xaxis_title="Aika (UTC)",
-                yaxis_title="Taajuus (Hz)",
-                height=600,
-                margin=dict(t=10)
-            )
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.warning("Ei dataa kaavion piirtämiseen.")
+        fig.update_layout(
+            xaxis_title="Aika (UTC)",
+            yaxis_title="Taajuus (Hz)",
+            height=600,
+            margin=dict(t=10)
+        )
+        st.plotly_chart(fig, use_container_width=True)
     else:
-        st.info("Valitse vähintään yksi viiva näytettäväksi.")
+        st.warning("Ei dataa valitulla aikavälillä.")
 
 # Taulukko
 with tab2:
-    if not filtered.empty:
-        sorted_table = filtered.sort_values(by="Timestamp", ascending=False).reset_index(drop=True)
-        st.dataframe(sorted_table[["Timestamp", "FrequencyHz"]], use_container_width=True)
-    else:
-        st.warning("Ei Norjan dataa taulukkoon.")
+    sorted_table = filtered.sort_values(by="Timestamp", ascending=False).reset_index(drop=True)
+    st.dataframe(sorted_table[["Timestamp", "FrequencyHz"]], use_container_width=True)
 
 # Suomen taajuus
 with tab3:
     if not filtered_fi.empty:
-        sorted_fi = filtered_fi.sort_values(by="Timestamp", ascending=False).reset_index(drop=True)
-        st.dataframe(sorted_fi[["Timestamp", "FrequencyHz"]], use_container_width=True)
+        st.dataframe(filtered_fi.sort_values(by="Timestamp", ascending=False).reset_index(drop=True), use_container_width=True)
     else:
-        st.warning("Ei Suomen dataa saatavilla.")
+        st.warning("Ei dataa saatavilla Fingridiltä.")
 
