@@ -4,17 +4,19 @@ import numpy as np
 import requests
 from datetime import datetime, timedelta
 import plotly.graph_objects as go
+import pytz
 
 st.set_page_config(layout="wide")
 
-# ✅ Validate API key
+# ✅ Tarkista, että API-avain on määritetty
 if "FINGRID_API_KEY" not in st.secrets:
     st.error("Fingridin API-avainta ei ole määritetty. Lisää se tiedostoon .streamlit/secrets.toml avaimella 'FINGRID_API_KEY'.")
     st.stop()
 
+# ✅ Hae avain käyttöön
 api_key = st.secrets["FINGRID_API_KEY"]
 
-# Session state initialization
+# Sessioasetukset
 if "interval" not in st.session_state:
     st.session_state.interval = "1 h"
 if "last_updated" not in st.session_state:
@@ -26,7 +28,7 @@ if "data" not in st.session_state:
 if "last_fetch_time" not in st.session_state:
     st.session_state.last_fetch_time = datetime.min
 
-# Fetch data from Statnett
+# Datahaku Norjan taajuudelle
 def fetch_data():
     now = datetime.utcnow()
     start_time = now - timedelta(hours=1)
@@ -57,17 +59,28 @@ def fetch_data():
 
     return grouped
 
-# Update data
+# Päivitä data
 def update_data():
     st.session_state.data = fetch_data()
     st.session_state.last_updated = datetime.utcnow()
     st.session_state.last_fetch_time = datetime.utcnow()
 
-# Tabs
+# Välilehdet
 tab1, tab2, tab3 = st.tabs(["Kaavio", "Taulukko", "Suomen taajuus"])
 
-# Controls
-st.markdown("<h4 style='text-align: center;'>Valinnat</h4>", unsafe_allow_html=True)
+# Yläpalkki: kellonäyttö
+with st.container():
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("### UTC-aika")
+        st.markdown(f"<h4>{datetime.utcnow().strftime('%H:%M:%S')}</h4>", unsafe_allow_html=True)
+    with col2:
+        helsinki_time = datetime.now(pytz.timezone("Europe/Helsinki"))
+        st.markdown("### Suomen aika")
+        st.markdown(f"<h4>{helsinki_time.strftime('%H:%M:%S')}</h4>", unsafe_allow_html=True)
+
+# Painikkeet
+st.markdown("### Valinnat")
 button_cols = st.columns([1, 1, 1, 1, 2], gap="small")
 
 with button_cols[0]:
@@ -85,28 +98,28 @@ with button_cols[3]:
 with button_cols[4]:
     st.session_state.auto_refresh = st.checkbox("Automaattipäivitys (1 min)", value=st.session_state.auto_refresh)
 
-# Auto refresh
+# Automaattinen päivitys
 if st.session_state.auto_refresh:
     now = datetime.utcnow()
     if (now - st.session_state.last_fetch_time).total_seconds() > 60:
         update_data()
 
-# Last updated
+# Päivitysaika
 if st.session_state.last_updated:
     st.caption(f"Viimeisin päivitys: {st.session_state.last_updated.strftime('%H:%M:%S')} UTC")
 
-# Initial data fetch
+# Haetaan data tarvittaessa
 if st.session_state.data is None:
     update_data()
 
 data = st.session_state.data
 
-# Filter data
+# Suodatus
 interval_minutes = {"10 min": 10, "30 min": 30, "1 h": 60}
 cutoff = datetime.utcnow() - timedelta(minutes=interval_minutes[st.session_state.interval])
 filtered = data[data["Timestamp"] >= cutoff]
 
-# Chart tab
+# Kaavio
 with tab1:
     if not filtered.empty:
         y_min = filtered["FrequencyHz"].min()
@@ -143,12 +156,14 @@ with tab1:
     else:
         st.warning("Ei dataa valitulla aikavälillä.")
 
-# Table tab
+# Taulukko
 with tab2:
-    sorted_table = filtered.sort_values(by="Timestamp", ascending=False).reset_index(drop=True)
-    st.dataframe(sorted_table[["Timestamp", "FrequencyHz"]], use_container_width=True)
+    show_table = st.checkbox("Näytä taulukko", value=False)
+    if show_table and not filtered.empty:
+        sorted_table = filtered.sort_values(by="Timestamp", ascending=False).reset_index(drop=True)
+        st.dataframe(sorted_table[["Timestamp", "FrequencyHz"]], use_container_width=True)
 
-# Fingrid frequency tab
+# Suomen taajuus (Fingridin data)
 with tab3:
     now = datetime.utcnow()
     start_time = now - timedelta(minutes=interval_minutes[st.session_state.interval])
