@@ -47,8 +47,19 @@ with st.sidebar:
     use_custom_range = st.checkbox("Käytä mukautettua aikaväliä", value=False)
     if use_custom_range:
         default_start = now - timedelta(hours=1)
-        custom_start = st.datetime_input("Aloitusaika (UTC)", value=default_start, max_value=now)
-        custom_end = st.datetime_input("Lopetusaika (UTC)", value=now, min_value=custom_start, max_value=now)
+        # Use date_input and time_input to get datetime
+        start_date = st.date_input("Aloituspäivä (UTC)", value=default_start.date(), max_value=now.date())
+        start_time_val = st.time_input("Aloitusaika (UTC)", value=default_start.time())
+        end_date = st.date_input("Lopetuspäivä (UTC)", value=now.date(), min_value=start_date, max_value=now.date())
+        end_time_val = st.time_input("Lopetusaika (UTC)", value=now.time())
+        from datetime import datetime as dt
+        custom_start = dt.combine(start_date, start_time_val)
+        custom_end = dt.combine(end_date, end_time_val)
+        # Clamp to now if needed
+        if custom_end > now:
+            custom_end = now
+        if custom_start > custom_end:
+            custom_start = custom_end
         start_time = custom_start
         end_time = custom_end
     else:
@@ -148,7 +159,7 @@ if 'refresh_interval' not in st.session_state:
 with st.sidebar:
     st.header("Päivitysasetukset")
     st.session_state.auto_refresh = st.checkbox("Automaattipäivitys", value=st.session_state.auto_refresh)
-    st.session_state.refresh_interval = st.slider("Päivitysväli (sekuntia)", min_value=55, max_value=600, value=st.session_state.refresh_interval, step=10)
+    st.session_state.refresh_interval = st.slider("Päivitysväli (sekuntia)", min_value=10, max_value=600, value=st.session_state.refresh_interval, step=10)
 
 refresh_countdown = None
 if st.session_state.auto_refresh:
