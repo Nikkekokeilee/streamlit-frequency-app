@@ -1,13 +1,12 @@
 import streamlit as st
 import pandas as pd
 import requests
-import time
 from datetime import datetime, timedelta
 import pytz
 import plotly.graph_objects as go
 
 st.set_page_config(layout="wide")
-st.title("📊 Taajuusvertailu: Norja & Suomi")
+st.title("📊 Taajuus (Norja & Suomi)")
 
 # Tarkista API-avain
 if "FINGRID_API_KEY" not in st.secrets:
@@ -61,7 +60,6 @@ def fetch_nordic_data():
 # Hae Suomen taajuusdata
 def fetch_finnish_data():
     try:
-        time.sleep(1)  # Viive API-kutsujen välillä
         fingrid_url = (
             f"https://data.fingrid.fi/api/datasets/177/data?"
             f"startTime={start_time.isoformat()}Z&endTime={now.isoformat()}Z"
@@ -165,21 +163,10 @@ fig.update_layout(
         titlefont=dict(size=16),
         tickfont=dict(size=14)
     ),
-    height=650,
-    margin=dict(t=80, b=60, l=80, r=40),
-    legend=dict(
-        orientation="h",
-        yanchor="bottom",
-        y=1.02,
-        xanchor="right",
-        x=1,
-        font=dict(size=14)
-    ),
-    title=dict(
-        text="Taajuusvertailu: Norja (1 min) & Suomi (3 min)",
-        font=dict(size=20),
-        x=0.5
-    )
+    height=600,
+    margin=dict(t=60, b=40, l=60, r=40),
+    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+    title=dict(text="Taajuusvertailu: Norja (1 min) & Suomi (3 min)", font=dict(size=20))
 )
 
 st.plotly_chart(fig, use_container_width=True)
