@@ -148,18 +148,6 @@ fig.update_layout(
         title="Aika (Suomen aika)",
         tickformat="%H:%M",
         titlefont=dict(size=16),
-        tickfont=dict(size=14),
-        domain=[0.0, 1.0],
-        anchor="y"
-    ),
-    xaxis2=dict(
-        title="Aika (UTC)",
-        overlaying="x",
-        side="top",
-        tickvals=df_merged["Timestamp_local"],
-        ticktext=df_merged["Timestamp"].dt.strftime("%H:%M"),
-        showgrid=False,
-        titlefont=dict(size=16),
         tickfont=dict(size=14)
     ),
     yaxis=dict(
