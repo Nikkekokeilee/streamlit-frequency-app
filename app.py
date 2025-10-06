@@ -1,6 +1,6 @@
 # Rajataan molemmat datat samaan aikaväliin
-    filtered_fi = filtered_fi[(filtered_fi["Timestamp"] >= cutoff) & (filtered_fi["Timestamp"] <= datetime.utcnow())]
-    filtered = filtered[(filtered["Timestamp"] >= cutoff) & (filtered["Timestamp"] <= datetime.utcnow())]
+filtered_fi = filtered_fi[(filtered_fi["Timestamp"] >= cutoff) & (filtered_fi["Timestamp"] <= datetime.utcnow())]
+filtered = filtered[(filtered["Timestamp"] >= cutoff) & (filtered["Timestamp"] <= datetime.utcnow())]
 
     # Yhdistetään aikaleimat ja taajuudet
     timestamps = pd.concat([
