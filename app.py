@@ -1,7 +1,7 @@
-# Uusi välilehti: Taajuudet
-tab1, tab2 = st.tabs(["Taajuudet", "Asetukset"])
+# Välilehdet: Taajuudet ja Asetukset
+tabs = st.tabs(["Taajuudet", "Asetukset"])
 
-with tab1:
+with tabs[0]:
     st.subheader("📊 Taajuus (Norja & Suomi)")
 
     # Valintaruudut
@@ -36,12 +36,12 @@ with tab1:
 
         # Yhdistetty aikaväli ja y-akselin rajat
         timestamps = pd.concat([
-            filtered["Timestamp"] if show_norway else pd.Series(),
-            filtered_fi["Timestamp"] if show_finland else pd.Series()
+            filtered["Timestamp"] if show_norway else pd.Series(dtype='datetime64[ns]'),
+            filtered_fi["Timestamp"] if show_finland else pd.Series(dtype='datetime64[ns]')
         ])
         freqs = pd.concat([
-            filtered["FrequencyHz"] if show_norway else pd.Series(),
-            filtered_fi["FrequencyHz"] if show_finland else pd.Series()
+            filtered["FrequencyHz"] if show_norway else pd.Series(dtype='float'),
+            filtered_fi["FrequencyHz"] if show_finland else pd.Series(dtype='float')
         ])
         if not timestamps.empty and not freqs.empty:
             y_min = freqs.min()
@@ -89,8 +89,7 @@ with tab1:
     else:
         st.warning("Valitse vähintään yksi taajuusnäyttö tai varmista, että data on saatavilla.")
 
-# Siirretään valinnat ja päivityspainikkeet toiseen välilehteen
-with tab2:
+with tabs[1]:
     st.markdown("### ⚙️ Asetukset")
     button_cols = st.columns([1, 1, 1, 1, 2], gap="small")
 
