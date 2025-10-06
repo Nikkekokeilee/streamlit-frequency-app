@@ -154,6 +154,8 @@ fig.update_layout(
     xaxis=dict(
         title="Aika (Suomen aika)",
         tickformat="%H:%M",
+        titlefont=dict(size=16),
+        tickfont=dict(size=14),
         domain=[0.0, 1.0],
         anchor="y"
     ),
@@ -163,22 +165,33 @@ fig.update_layout(
         side="top",
         tickvals=df_merged["Timestamp_local"],
         ticktext=df_merged["Timestamp"].dt.strftime("%H:%M"),
-        showgrid=False
+        showgrid=False,
+        titlefont=dict(size=16),
+        tickfont=dict(size=14)
     ),
     yaxis=dict(
         title="Taajuus (Hz)",
-        range=[y_axis_min, y_axis_max]
+        range=[y_axis_min, y_axis_max],
+        titlefont=dict(size=16),
+        tickfont=dict(size=14)
     ),
-    height=600,
-    margin=dict(t=60, b=40, l=60, r=40),
-    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-    title="Taajuusvertailu: Norja (1 min) & Suomi (3 min)"
+    height=650,
+    margin=dict(t=80, b=60, l=80, r=40),
+    legend=dict(
+        orientation="h",
+        yanchor="bottom",
+        y=1.02,
+        xanchor="right",
+        x=1,
+        font=dict(size=14)
+    ),
+    title=dict(
+        text="Taajuusvertailu: Norja (1 min) & Suomi (3 min)",
+        font=dict(size=20),
+        x=0.5
+    )
 )
 
-st.plotly_chart(fig, use_container_width=True)
-
-if st.session_state.last_updated:
-    st.caption(f"Viimeisin päivitys: {st.session_state.last_updated.strftime('%H:%M:%S')} UTC")
 
 # Asetukset alasvetovalikossa
 with st.expander("⚙️ Asetukset"):
