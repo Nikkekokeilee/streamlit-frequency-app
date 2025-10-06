@@ -34,46 +34,57 @@ start_time = now - timedelta(minutes=interval_minutes)
 
 # Hae Norjan taajuusdata
 def fetch_nordic_data():
-    from_param = start_time.strftime("%Y-%m-%d")
-    url = f"https://driftsdata.statnett.no/restapi/Frequency/BySecond?From={from_param}"
-    response = requests.get(url)
-    response.raise_for_status()
-    data = response.json()
-    start_point_utc = data["StartPointUTC"]
-    period_tick_ms = data["PeriodTickMs"]
-    measurements = data["Measurements"]
-    if not measurements:
+    try:
+        from_param = start_time.strftime("%Y-%m-%d")
+        url = f"https://driftsdata.statnett.no/restapi/Frequency/BySecond?From={from_param}"
+        response = requests.get(url)
+        response.raise_for_status()
+        data = response.json()
+        start_point_utc = data["StartPointUTC"]
+        period_tick_ms = data["PeriodTickMs"]
+        measurements = data["Measurements"]
+        if not measurements:
+            return pd.DataFrame()
+        start_dt = datetime(1970, 1, 1) + timedelta(milliseconds=start_point_utc)
+        period_sec = period_tick_ms / 1000
+        df = pd.DataFrame(measurements, columns=["FrequencyHz"])
+        df["Timestamp"] = [start_dt + timedelta(seconds=i * period_sec) for i in range(len(df))]
+        df["Timestamp"] = pd.to_datetime(df["Timestamp"])
+        df.set_index("Timestamp", inplace=True)
+        df_resampled = df.resample("1min").mean().reset_index()
+        return df_resampled
+    except Exception as e:
+        st.warning(f"Norjan datan haussa tapahtui virhe: {e}")
         return pd.DataFrame()
-    start_dt = datetime(1970, 1, 1) + timedelta(milliseconds=start_point_utc)
-    period_sec = period_tick_ms / 1000
-    df = pd.DataFrame(measurements, columns=["FrequencyHz"])
-    df["Timestamp"] = [start_dt + timedelta(seconds=i * period_sec) for i in range(len(df))]
-    df["Timestamp"] = pd.to_datetime(df["Timestamp"])
-    df.set_index("Timestamp", inplace=True)
-    df_resampled = df.resample("1min").mean().reset_index()
-    return df_resampled
 
 # Hae Suomen taajuusdata
 def fetch_finnish_data():
-    fingrid_url = (
-        f"https://data.fingrid.fi/api/datasets/177/data?"
-        f"startTime={start_time.isoformat()}Z&endTime={now.isoformat()}Z"
-    )
-    headers = {"x-api-key": api_key}
-    response = requests.get(fingrid_url, headers=headers)
-    response.raise_for_status()
-    fi_data = response.json()
-    df_fi = pd.DataFrame(fi_data["data"])
-    df_fi["Timestamp"] = pd.to_datetime(df_fi["startTime"]).dt.tz_localize(None)
-    df_fi["FrequencyHz"] = df_fi["value"]
-    df_fi = df_fi[["Timestamp", "FrequencyHz"]]
-    return df_fi
+    try:
+        fingrid_url = (
+            f"https://data.fingrid.fi/api/datasets/177/data?"
+            f"startTime={start_time.isoformat()}Z&endTime={now.isoformat()}Z"
+        )
+        headers = {"x-api-key": api_key}
+        response = requests.get(fingrid_url, headers=headers)
+        response.raise_for_status()
+        fi_data = response.json()
+        df_fi = pd.DataFrame(fi_data["data"])
+        df_fi["Timestamp"] = pd.to_datetime(df_fi["startTime"]).dt.tz_localize(None)
+        df_fi["FrequencyHz"] = df_fi["value"]
+        df_fi = df_fi[["Timestamp", "FrequencyHz"]]
+        return df_fi
+    except Exception as e:
+        st.warning(f"Suomen datan haussa tapahtui virhe: {e}")
+        return pd.DataFrame()
 
 # Päivitä data
 def update_data():
-    try:
+    with st.spinner("Haetaan dataa..."):
         df_nordic = fetch_nordic_data()
         df_finnish = fetch_finnish_data()
+        if df_nordic.empty or df_finnish.empty:
+            st.warning("Datan haku epäonnistui tai dataa ei löytynyt.")
+            return
         df_merged = pd.merge_asof(
             df_finnish.sort_values("Timestamp"),
             df_nordic.sort_values("Timestamp"),
@@ -84,9 +95,6 @@ def update_data():
         st.session_state.data = df_merged
         st.session_state.last_updated = datetime.utcnow()
         st.session_state.last_fetch_time = datetime.utcnow()
-    except Exception as e:
-        st.error(f"Virhe datan haussa: {e}")
-        st.stop()
 
 # Automaattinen päivitys
 if st.session_state.auto_refresh:
@@ -165,32 +173,25 @@ with tab1:
             range=[y_axis_min, y_axis_max]
         ),
         height=600,
-        width=1600,
         margin=dict(t=60, b=40, l=60, r=40),
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
         title="Taajuusvertailu: Norja (1 min) & Suomi (3 min)"
     )
 
-    st.plotly_chart(fig, use_container_width=False)
+    st.plotly_chart(fig, use_container_width=True)
 
     if st.session_state.last_updated:
         st.caption(f"Viimeisin päivitys: {st.session_state.last_updated.strftime('%H:%M:%S')} UTC")
 
 with tab2:
     st.markdown("### ⚙️ Asetukset")
-    button_cols = st.columns([1, 1, 1, 1, 2], gap="small")
 
-    with button_cols[0]:
-        if st.button("10 min"):
-            st.session_state.interval = "10 min"
-    with button_cols[1]:
-        if st.button("30 min"):
-            st.session_state.interval = "30 min"
-    with button_cols[2]:
-        if st.button("1 h"):
-            st.session_state.interval = "1 h"
-    with button_cols[3]:
-        if st.button("Päivitä"):
-            update_data()
-    with button_cols[4]:
-        st.session_state.auto_refresh = st.checkbox("Automaattipäivitys (1 min)", value=st.session_state.auto_refresh)
+    selected_interval = st.selectbox("Valitse aikaväli", ["10 min", "30 min", "1 h"], index=["10 min", "30 min", "1 h"].index(st.session_state.interval))
+    if selected_interval != st.session_state.interval:
+        st.session_state.interval = selected_interval
+        update_data()
+
+    if st.button("Päivitä nyt"):
+        update_data()
+
+    st.session_state.auto_refresh = st.checkbox("Automaattipäivitys (1 min)", value=st.session_state.auto_refresh)
