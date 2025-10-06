@@ -156,7 +156,12 @@ fig.update_layout(
         tickformat="%H:%M",
         domain=[0.0, 1.0],
         anchor="y"
+        titlefont=dict(size=16),
+        tickfont=dict(size=14)
     ),
+    
+
+
     xaxis2=dict(
         title="Aika (UTC)",
         overlaying="x",
@@ -165,6 +170,7 @@ fig.update_layout(
         ticktext=df_merged["Timestamp"].dt.strftime("%H:%M"),
         showgrid=False
     ),
+
     yaxis=dict(
         title="Taajuus (Hz)",
         range=[y_axis_min, y_axis_max]
