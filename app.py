@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import requests
 from datetime import datetime, timedelta
+import pytz
 import plotly.graph_objects as go
 
 st.set_page_config(layout="wide")
@@ -70,12 +71,16 @@ except Exception as e:
     st.error(f"Virhe datan haussa: {e}")
     st.stop()
 
+# Muunna aikaleimat Suomen aikaan
+helsinki_tz = pytz.timezone("Europe/Helsinki")
+df_merged["Timestamp_local"] = df_merged["Timestamp"].dt.tz_localize("UTC").dt.tz_convert(helsinki_tz)
+
 # Piirrä kuvaaja
 fig = go.Figure()
 
 # Varoitusalueet
-x_start = df_merged["Timestamp"].min()
-x_end = df_merged["Timestamp"].max()
+x_start = df_merged["Timestamp_local"].min()
+x_end = df_merged["Timestamp_local"].max()
 y_min = df_merged[["FrequencyHz_Suomi", "FrequencyHz_Norja"]].min().min()
 y_max = df_merged[["FrequencyHz_Suomi", "FrequencyHz_Norja"]].max().max()
 y_axis_min = y_min - 0.05
@@ -96,19 +101,34 @@ fig.add_shape(
 
 # Norjan taajuus
 fig.add_trace(go.Scatter(
-    x=df_merged["Timestamp"], y=df_merged["FrequencyHz_Norja"],
+    x=df_merged["Timestamp_local"], y=df_merged["FrequencyHz_Norja"],
     mode="lines+markers", name="Norja (1 min)", line=dict(color="black")
 ))
 
 # Suomen taajuus
 fig.add_trace(go.Scatter(
-    x=df_merged["Timestamp"], y=df_merged["FrequencyHz_Suomi"],
+    x=df_merged["Timestamp_local"], y=df_merged["FrequencyHz_Suomi"],
     mode="lines+markers", name="Suomi (3 min)", line=dict(color="green")
 ))
 
+# Lisää toinen x-akseli UTC-ajalle
 fig.update_layout(
-    xaxis_title="Aika (UTC)",
-    yaxis_title="Taajuus (Hz)",
+    xaxis=dict(
+        title="Aika (Suomen aika)",
+        tickformat="%H:%M",
+        domain=[0.0, 1.0],
+        anchor="y"
+    ),
+    xaxis2=dict(
+        title="Aika (UTC)",
+        tickformat="%H:%M",
+        overlaying="x",
+        side="top"
+    ),
+    yaxis=dict(
+        title="Taajuus (Hz)",
+        range=[y_axis_min, y_axis_max]
+    ),
     height=600,
     margin=dict(t=10),
     legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
