@@ -6,20 +6,24 @@ import pytz
 import plotly.graph_objects as go
 
 st.set_page_config(layout="wide")
-st.title("📊 Taajuus (Norja & Suomi)")
+st.title("📊 Taajuusvertailu: Norja & Suomi")
 
-# Tarkista API-avain
+# ✅ Tarkista API-avain
 if "FINGRID_API_KEY" not in st.secrets:
     st.error("Fingridin API-avainta ei ole määritetty. Lisää se tiedostoon .streamlit/secrets.toml avaimella 'FINGRID_API_KEY'.")
     st.stop()
 api_key = st.secrets["FINGRID_API_KEY"]
 
-# Aikaväli
-interval_minutes = 60
+# ✅ Asetukset (sivupalkissa)
+st.sidebar.header("⚙️ Asetukset")
+interval_option = st.sidebar.selectbox("Aikaväli", ["10 min", "30 min", "1 h"], index=2)
+auto_refresh = st.sidebar.checkbox("Automaattipäivitys (1 min)", value=False)
+
+interval_minutes = {"10 min": 10, "30 min": 30, "1 h": 60}[interval_option]
 now = datetime.utcnow()
 start_time = now - timedelta(minutes=interval_minutes)
 
-# Hae Norjan taajuusdata
+# ✅ Norjan taajuusdata (1 min keskiarvo)
 def fetch_nordic_data():
     from_param = start_time.strftime("%Y-%m-%d")
     url = f"https://driftsdata.statnett.no/restapi/Frequency/BySecond?From={from_param}"
@@ -40,7 +44,7 @@ def fetch_nordic_data():
     df_resampled = df.resample("1min").mean().reset_index()
     return df_resampled
 
-# Hae Suomen taajuusdata
+# ✅ Suomen taajuusdata (3 min välein)
 def fetch_finnish_data():
     fingrid_url = (
         f"https://data.fingrid.fi/api/datasets/177/data?"
@@ -56,7 +60,7 @@ def fetch_finnish_data():
     df_fi = df_fi[["Timestamp", "FrequencyHz"]]
     return df_fi
 
-# Hae ja yhdistä data
+# ✅ Hae ja yhdistä data
 try:
     df_nordic = fetch_nordic_data()
     df_finnish = fetch_finnish_data()
@@ -71,14 +75,13 @@ except Exception as e:
     st.error(f"Virhe datan haussa: {e}")
     st.stop()
 
-# Muunna aikaleimat Suomen aikaan
+# ✅ Muunna aikaleimat Suomen aikaan
 helsinki_tz = pytz.timezone("Europe/Helsinki")
 df_merged["Timestamp_local"] = df_merged["Timestamp"].dt.tz_localize("UTC").dt.tz_convert(helsinki_tz)
 
-# Piirrä kuvaaja
+# ✅ Piirrä kuvaaja
 fig = go.Figure()
 
-# Varoitusalueet
 x_start = df_merged["Timestamp_local"].min()
 x_end = df_merged["Timestamp_local"].max()
 y_min = df_merged[["FrequencyHz_Suomi", "FrequencyHz_Norja"]].min().min()
@@ -86,6 +89,7 @@ y_max = df_merged[["FrequencyHz_Suomi", "FrequencyHz_Norja"]].max().max()
 y_axis_min = y_min - 0.05
 y_axis_max = y_max + 0.05
 
+# Varoitusalueet
 fig.add_shape(
     type="rect", xref="x", yref="y",
     x0=x_start, x1=x_end,
@@ -99,40 +103,37 @@ fig.add_shape(
     fillcolor="rgba(0,0,255,0.1)", line_width=0, layer="below"
 )
 
-# Norjan taajuus
+# Taajuuskäyrät
 fig.add_trace(go.Scatter(
     x=df_merged["Timestamp_local"], y=df_merged["FrequencyHz_Norja"],
     mode="lines+markers", name="Norja (1 min)", line=dict(color="black")
 ))
-
-# Suomen taajuus
 fig.add_trace(go.Scatter(
     x=df_merged["Timestamp_local"], y=df_merged["FrequencyHz_Suomi"],
     mode="lines+markers", name="Suomi (3 min)", line=dict(color="green")
 ))
 
-# Lisää toinen x-akseli UTC-ajalle
+# Aikajanat
 fig.update_layout(
     xaxis=dict(
         title="Aika (Suomen aika)",
         tickformat="%H:%M",
-        domain=[0.0, 1.0],
-        anchor="y"
+        domain=[0, 1]
     ),
     xaxis2=dict(
-        title="Aika (UTC)",
-        tickformat="%H:%M",
+        title="UTC-aika",
         overlaying="x",
-        side="top"
+        side="top",
+        tickvals=df_merged["Timestamp_local"],
+        ticktext=df_merged["Timestamp"].dt.strftime("%H:%M"),
+        showgrid=False
     ),
-    yaxis=dict(
-        title="Taajuus (Hz)",
-        range=[y_axis_min, y_axis_max]
-    ),
-    height=600,
-    margin=dict(t=10),
+    yaxis=dict(title="Taajuus (Hz)", range=[y_axis_min, y_axis_max]),
+    height=800,
+    width=1600,
+    margin=dict(t=60, b=40, l=60, r=40),
     legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
     title="Taajuusvertailu: Norja (1 min) & Suomi (3 min)"
 )
 
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, use_container_width=False)
