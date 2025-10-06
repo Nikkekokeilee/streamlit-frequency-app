@@ -6,7 +6,7 @@ import pytz
 import plotly.graph_objects as go
 
 st.set_page_config(layout="wide")
-st.title("📊 Taajuus (Norja & Suomi)")
+st.title("📊 Taajuusvertailu: Norja & Suomi")
 
 # Tarkista API-avain
 if "FINGRID_API_KEY" not in st.secrets:
@@ -108,12 +108,9 @@ if st.session_state.data is None:
 
 # Näytä kuvaaja
 df_merged = st.session_state.data
-
-# Muunna aikaleimat Suomen aikaan
 helsinki_tz = pytz.timezone("Europe/Helsinki")
 df_merged["Timestamp_local"] = df_merged["Timestamp"].dt.tz_localize("UTC").dt.tz_convert(helsinki_tz)
 
-# Piirrä kuvaaja
 fig = go.Figure()
 
 # Varoitusalueet
@@ -137,19 +134,15 @@ fig.add_shape(
     fillcolor="rgba(0,0,255,0.1)", line_width=0, layer="below"
 )
 
-# Norjan taajuus
 fig.add_trace(go.Scatter(
     x=df_merged["Timestamp_local"], y=df_merged["FrequencyHz_Norja"],
     mode="lines+markers", name="Norja (1 min)", line=dict(color="black")
 ))
-
-# Suomen taajuus
 fig.add_trace(go.Scatter(
     x=df_merged["Timestamp_local"], y=df_merged["FrequencyHz_Suomi"],
     mode="lines+markers", name="Suomi (3 min)", line=dict(color="green")
 ))
 
-# Aikajanat
 fig.update_layout(
     xaxis=dict(
         title="Aika (Suomen aika)",
@@ -192,6 +185,10 @@ fig.update_layout(
     )
 )
 
+st.plotly_chart(fig, use_container_width=True)
+
+if st.session_state.last_updated:
+    st.caption(f"Viimeisin päivitys: {st.session_state.last_updated.strftime('%H:%M:%S')} UTC")
 
 # Asetukset alasvetovalikossa
 with st.expander("⚙️ Asetukset"):
