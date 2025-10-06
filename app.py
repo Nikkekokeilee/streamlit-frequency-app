@@ -153,12 +153,16 @@ fig.add_trace(go.Scatter(
 fig.update_layout(
     xaxis=dict(
         title="Aika (Suomen aika)",
+        titlefont=dict(size=14),
+        tickfont=dict(size=18),
         tickformat="%H:%M",
         domain=[0.0, 1.0],
         anchor="y"
     ),
     xaxis2=dict(
         title="Aika (UTC)",
+        titlefont=dict(size=16),
+        tickfont=dict(size=16),
         overlaying="x",
         side="top",
         tickvals=df_merged["Timestamp_local"],
@@ -167,12 +171,24 @@ fig.update_layout(
     ),
     yaxis=dict(
         title="Taajuus (Hz)",
+        titlefont=dict(size=22),
+        tickfont=dict(size=18),
         range=[y_axis_min, y_axis_max]
     ),
     height=600,
     margin=dict(t=60, b=40, l=60, r=40),
-    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-    title="Taajuusvertailu: Norja (1 min) & Suomi (3 min)"
+    legend=dict(
+        orientation="h",
+        yanchor="bottom",
+        y=1.02,
+        xanchor="right",
+        x=1,
+        font=dict(size=18)
+    ),
+    title=dict(
+        text="Taajuusvertailu: Norja (1 min) & Suomi (3 min)",
+        font=dict(size=26)
+    )
 )
 
 st.plotly_chart(fig, use_container_width=True)
