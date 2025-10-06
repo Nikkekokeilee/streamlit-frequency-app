@@ -114,7 +114,6 @@ helsinki_tz = pytz.timezone("Europe/Helsinki")
 df_merged["Timestamp_local"] = df_merged["Timestamp"].dt.tz_localize("UTC").dt.tz_convert(helsinki_tz)
 
 # Piirrä kuvaaja
-# Piirrä kuvaaja
 fig = go.Figure()
 
 # Varoitusalueet
@@ -150,15 +149,13 @@ fig.add_trace(go.Scatter(
     mode="lines+markers", name="Suomi (3 min)", line=dict(color="green")
 ))
 
-# Aikajanat ja fonttikoot
+# Aikajanat
 fig.update_layout(
     xaxis=dict(
         title="Aika (Suomen aika)",
         tickformat="%H:%M",
         domain=[0.0, 1.0],
-        anchor="y",
-        titlefont=dict(size=18),
-        tickfont=dict(size=14)
+        anchor="y"
     ),
     xaxis2=dict(
         title="Aika (UTC)",
@@ -166,20 +163,16 @@ fig.update_layout(
         side="top",
         tickvals=df_merged["Timestamp_local"],
         ticktext=df_merged["Timestamp"].dt.strftime("%H:%M"),
-        showgrid=False,
-        titlefont=dict(size=18),
-        tickfont=dict(size=14)
+        showgrid=False
     ),
     yaxis=dict(
         title="Taajuus (Hz)",
-        range=[y_axis_min, y_axis_max],
-        titlefont=dict(size=18),
-        tickfont=dict(size=14)
+        range=[y_axis_min, y_axis_max]
     ),
-    height=650,
-    margin=dict(t=80, b=60, l=80, r=40),
-    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(size=14)),
-    title=dict(text="Taajuusvertailu: Norja (1 min) & Suomi (3 min)", font=dict(size=22))
+    height=600,
+    margin=dict(t=60, b=40, l=60, r=40),
+    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+    title="Taajuusvertailu: Norja (1 min) & Suomi (3 min)"
 )
 
 st.plotly_chart(fig, use_container_width=True)
