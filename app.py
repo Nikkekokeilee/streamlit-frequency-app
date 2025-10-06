@@ -106,86 +106,82 @@ if st.session_state.auto_refresh:
 if st.session_state.data is None:
     update_data()
 
-# Välilehdet
-tab1, tab2 = st.tabs(["Taajuusvertailu", "Asetukset"])
+# Näytä kuvaaja
+df_merged = st.session_state.data
 
-with tab1:
-    df_merged = st.session_state.data
+# Muunna aikaleimat Suomen aikaan
+helsinki_tz = pytz.timezone("Europe/Helsinki")
+df_merged["Timestamp_local"] = df_merged["Timestamp"].dt.tz_localize("UTC").dt.tz_convert(helsinki_tz)
 
-    # Muunna aikaleimat Suomen aikaan
-    helsinki_tz = pytz.timezone("Europe/Helsinki")
-    df_merged["Timestamp_local"] = df_merged["Timestamp"].dt.tz_localize("UTC").dt.tz_convert(helsinki_tz)
+# Piirrä kuvaaja
+fig = go.Figure()
 
-    # Piirrä kuvaaja
-    fig = go.Figure()
+# Varoitusalueet
+x_start = df_merged["Timestamp_local"].min()
+x_end = df_merged["Timestamp_local"].max()
+y_min = df_merged[["FrequencyHz_Suomi", "FrequencyHz_Norja"]].min().min()
+y_max = df_merged[["FrequencyHz_Suomi", "FrequencyHz_Norja"]].max().max()
+y_axis_min = y_min - 0.05
+y_axis_max = y_max + 0.05
 
-    # Varoitusalueet
-    x_start = df_merged["Timestamp_local"].min()
-    x_end = df_merged["Timestamp_local"].max()
-    y_min = df_merged[["FrequencyHz_Suomi", "FrequencyHz_Norja"]].min().min()
-    y_max = df_merged[["FrequencyHz_Suomi", "FrequencyHz_Norja"]].max().max()
-    y_axis_min = y_min - 0.05
-    y_axis_max = y_max + 0.05
+fig.add_shape(
+    type="rect", xref="x", yref="y",
+    x0=x_start, x1=x_end,
+    y0=y_axis_min, y1=min(49.95, y_axis_max),
+    fillcolor="rgba(255,0,0,0.1)", line_width=0, layer="below"
+)
+fig.add_shape(
+    type="rect", xref="x", yref="y",
+    x0=x_start, x1=x_end,
+    y0=max(50.05, y_axis_min), y1=y_axis_max,
+    fillcolor="rgba(0,0,255,0.1)", line_width=0, layer="below"
+)
 
-    fig.add_shape(
-        type="rect", xref="x", yref="y",
-        x0=x_start, x1=x_end,
-        y0=y_axis_min, y1=min(49.95, y_axis_max),
-        fillcolor="rgba(255,0,0,0.1)", line_width=0, layer="below"
-    )
-    fig.add_shape(
-        type="rect", xref="x", yref="y",
-        x0=x_start, x1=x_end,
-        y0=max(50.05, y_axis_min), y1=y_axis_max,
-        fillcolor="rgba(0,0,255,0.1)", line_width=0, layer="below"
-    )
+# Norjan taajuus
+fig.add_trace(go.Scatter(
+    x=df_merged["Timestamp_local"], y=df_merged["FrequencyHz_Norja"],
+    mode="lines+markers", name="Norja (1 min)", line=dict(color="black")
+))
 
-    # Norjan taajuus
-    fig.add_trace(go.Scatter(
-        x=df_merged["Timestamp_local"], y=df_merged["FrequencyHz_Norja"],
-        mode="lines+markers", name="Norja (1 min)", line=dict(color="black")
-    ))
+# Suomen taajuus
+fig.add_trace(go.Scatter(
+    x=df_merged["Timestamp_local"], y=df_merged["FrequencyHz_Suomi"],
+    mode="lines+markers", name="Suomi (3 min)", line=dict(color="green")
+))
 
-    # Suomen taajuus
-    fig.add_trace(go.Scatter(
-        x=df_merged["Timestamp_local"], y=df_merged["FrequencyHz_Suomi"],
-        mode="lines+markers", name="Suomi (3 min)", line=dict(color="green")
-    ))
+# Aikajanat
+fig.update_layout(
+    xaxis=dict(
+        title="Aika (Suomen aika)",
+        tickformat="%H:%M",
+        domain=[0.0, 1.0],
+        anchor="y"
+    ),
+    xaxis2=dict(
+        title="Aika (UTC)",
+        overlaying="x",
+        side="top",
+        tickvals=df_merged["Timestamp_local"],
+        ticktext=df_merged["Timestamp"].dt.strftime("%H:%M"),
+        showgrid=False
+    ),
+    yaxis=dict(
+        title="Taajuus (Hz)",
+        range=[y_axis_min, y_axis_max]
+    ),
+    height=600,
+    margin=dict(t=60, b=40, l=60, r=40),
+    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+    title="Taajuusvertailu: Norja (1 min) & Suomi (3 min)"
+)
 
-    # Aikajanat
-    fig.update_layout(
-        xaxis=dict(
-            title="Aika (Suomen aika)",
-            tickformat="%H:%M",
-            domain=[0.0, 1.0],
-            anchor="y"
-        ),
-        xaxis2=dict(
-            title="Aika (UTC)",
-            overlaying="x",
-            side="top",
-            tickvals=df_merged["Timestamp_local"],
-            ticktext=df_merged["Timestamp"].dt.strftime("%H:%M"),
-            showgrid=False
-        ),
-        yaxis=dict(
-            title="Taajuus (Hz)",
-            range=[y_axis_min, y_axis_max]
-        ),
-        height=600,
-        margin=dict(t=60, b=40, l=60, r=40),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-        title="Taajuusvertailu: Norja (1 min) & Suomi (3 min)"
-    )
+st.plotly_chart(fig, use_container_width=True)
 
-    st.plotly_chart(fig, use_container_width=True)
+if st.session_state.last_updated:
+    st.caption(f"Viimeisin päivitys: {st.session_state.last_updated.strftime('%H:%M:%S')} UTC")
 
-    if st.session_state.last_updated:
-        st.caption(f"Viimeisin päivitys: {st.session_state.last_updated.strftime('%H:%M:%S')} UTC")
-
-with tab2:
-    st.markdown("### ⚙️ Asetukset")
-
+# Asetukset alasvetovalikossa
+with st.expander("⚙️ Asetukset"):
     selected_interval = st.selectbox("Valitse aikaväli", ["10 min", "30 min", "1 h"], index=["10 min", "30 min", "1 h"].index(st.session_state.interval))
     if selected_interval != st.session_state.interval:
         st.session_state.interval = selected_interval
