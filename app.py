@@ -174,7 +174,7 @@ if refresh_countdown is not None and st.session_state.auto_refresh:
 # Ohje/info-osio
 with st.expander("ℹ️ Ohjeet ja tietoa" if lang=="Suomi" else "ℹ️ Help & Info"):
     if lang == "Suomi":
-    st.markdown("""
+        st.markdown("""
 **Tietolähteet:**
 - Norjan taajuus: [Statnett Driftsdata](https://driftsdata.statnett.no/)
 - Suomen taajuus: [Fingrid Datahub](https://data.fingrid.fi/)
@@ -187,9 +187,9 @@ with st.expander("ℹ️ Ohjeet ja tietoa" if lang=="Suomi" else "ℹ️ Help & 
 - Punainen alue: taajuus alle 49.95 Hz (alhainen)
 - Sininen alue: taajuus yli 50.05 Hz (korkea)
 - Voit piilottaa/näyttää maiden käyrät ja tarkastella yhteenvetotilastoja.
-    """)
+        """)
     else:
-    st.markdown("""
+        st.markdown("""
 **Data sources:**
 - Norway frequency: [Statnett Driftsdata](https://driftsdata.statnett.no/)
 - Finland frequency: [Fingrid Datahub](https://data.fingrid.fi/)
@@ -202,7 +202,7 @@ with st.expander("ℹ️ Ohjeet ja tietoa" if lang=="Suomi" else "ℹ️ Help & 
 - Red area: frequency below 49.95 Hz (low)
 - Blue area: frequency above 50.05 Hz (high)
 - You can hide/show country curves and view summary statistics.
-    """)
+        """)
 
 # Näytä kuvaaja
 df_merged = st.session_state.data
