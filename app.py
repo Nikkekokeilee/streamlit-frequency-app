@@ -152,28 +152,25 @@ fig.add_trace(go.Scatter(
 # Aikajanat
 fig.update_layout(
     xaxis=dict(
-        title="Aika (Suomen aika)",
-        titlefont=dict(size=14),
-        tickfont=dict(size=18),
+        title=dict(text="Aika (Suomen aika)", font=dict(size=22)),
         tickformat="%H:%M",
         domain=[0.0, 1.0],
-        anchor="y"
+        anchor="y",
+        tickfont=dict(size=18)
     ),
     xaxis2=dict(
-        title="Aika (UTC)",
-        titlefont=dict(size=16),
-        tickfont=dict(size=16),
+        title=dict(text="Aika (UTC)", font=dict(size=20)),
         overlaying="x",
         side="top",
         tickvals=df_merged["Timestamp_local"],
         ticktext=df_merged["Timestamp"].dt.strftime("%H:%M"),
-        showgrid=False
+        showgrid=False,
+        tickfont=dict(size=16)
     ),
     yaxis=dict(
-        title="Taajuus (Hz)",
-        titlefont=dict(size=22),
-        tickfont=dict(size=18),
-        range=[y_axis_min, y_axis_max]
+        title=dict(text="Taajuus (Hz)", font=dict(size=22)),
+        range=[y_axis_min, y_axis_max],
+        tickfont=dict(size=18)
     ),
     height=600,
     margin=dict(t=60, b=40, l=60, r=40),
