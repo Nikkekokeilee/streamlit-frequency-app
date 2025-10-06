@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import requests
+import time
 from datetime import datetime, timedelta
 import pytz
 import plotly.graph_objects as go
@@ -60,6 +61,7 @@ def fetch_nordic_data():
 # Hae Suomen taajuusdata
 def fetch_finnish_data():
     try:
+        time.sleep(1)  # Viive API-kutsujen välillä
         fingrid_url = (
             f"https://data.fingrid.fi/api/datasets/177/data?"
             f"startTime={start_time.isoformat()}Z&endTime={now.isoformat()}Z"
@@ -84,6 +86,7 @@ def update_data():
         df_finnish = fetch_finnish_data()
         if df_nordic.empty or df_finnish.empty:
             st.warning("Datan haku epäonnistui tai dataa ei löytynyt.")
+            st.session_state.data = pd.DataFrame()
             return
         df_merged = pd.merge_asof(
             df_finnish.sort_values("Timestamp"),
@@ -106,14 +109,20 @@ if st.session_state.auto_refresh:
 if st.session_state.data is None:
     update_data()
 
-# Näytä kuvaaja
 df_merged = st.session_state.data
+
+# Estä virhe, jos dataa ei ole
+if df_merged is None or df_merged.empty:
+    st.warning("Ei näytettävää dataa. Tarkista API-yhteydet tai aikaväli.")
+    st.stop()
+
+# Muunna aikaleimat Suomen aikaan
 helsinki_tz = pytz.timezone("Europe/Helsinki")
 df_merged["Timestamp_local"] = df_merged["Timestamp"].dt.tz_localize("UTC").dt.tz_convert(helsinki_tz)
 
+# Piirrä kuvaaja
 fig = go.Figure()
 
-# Varoitusalueet
 x_start = df_merged["Timestamp_local"].min()
 x_end = df_merged["Timestamp_local"].max()
 y_min = df_merged[["FrequencyHz_Suomi", "FrequencyHz_Norja"]].min().min()
