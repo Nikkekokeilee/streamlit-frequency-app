@@ -148,7 +148,7 @@ if 'refresh_interval' not in st.session_state:
 with st.sidebar:
     st.header("Päivitysasetukset")
     st.session_state.auto_refresh = st.checkbox("Automaattipäivitys", value=st.session_state.auto_refresh)
-    st.session_state.refresh_interval = st.slider("Päivitysväli (sekuntia)", min_value=10, max_value=600, value=st.session_state.refresh_interval, step=10)
+    st.session_state.refresh_interval = st.slider("Päivitysväli (sekuntia)", min_value=55, max_value=600, value=st.session_state.refresh_interval, step=10)
 
 refresh_countdown = None
 if st.session_state.auto_refresh:
