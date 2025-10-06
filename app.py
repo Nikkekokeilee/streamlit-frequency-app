@@ -84,7 +84,6 @@ def update_data():
         df_finnish = fetch_finnish_data()
         if df_nordic.empty or df_finnish.empty:
             st.warning("Datan haku epäonnistui tai dataa ei löytynyt.")
-            st.session_state.data = pd.DataFrame()
             return
         df_merged = pd.merge_asof(
             df_finnish.sort_values("Timestamp"),
@@ -107,12 +106,8 @@ if st.session_state.auto_refresh:
 if st.session_state.data is None:
     update_data()
 
+# Näytä kuvaaja
 df_merged = st.session_state.data
-
-# Estä virhe, jos dataa ei ole
-if df_merged is None or df_merged.empty:
-    st.warning("Ei näytettävää dataa. Tarkista API-yhteydet tai aikaväli.")
-    st.stop()
 
 # Muunna aikaleimat Suomen aikaan
 helsinki_tz = pytz.timezone("Europe/Helsinki")
@@ -121,6 +116,7 @@ df_merged["Timestamp_local"] = df_merged["Timestamp"].dt.tz_localize("UTC").dt.t
 # Piirrä kuvaaja
 fig = go.Figure()
 
+# Varoitusalueet
 x_start = df_merged["Timestamp_local"].min()
 x_end = df_merged["Timestamp_local"].max()
 y_min = df_merged[["FrequencyHz_Suomi", "FrequencyHz_Norja"]].min().min()
@@ -141,32 +137,42 @@ fig.add_shape(
     fillcolor="rgba(0,0,255,0.1)", line_width=0, layer="below"
 )
 
+# Norjan taajuus
 fig.add_trace(go.Scatter(
     x=df_merged["Timestamp_local"], y=df_merged["FrequencyHz_Norja"],
     mode="lines+markers", name="Norja (1 min)", line=dict(color="black")
 ))
+
+# Suomen taajuus
 fig.add_trace(go.Scatter(
     x=df_merged["Timestamp_local"], y=df_merged["FrequencyHz_Suomi"],
     mode="lines+markers", name="Suomi (3 min)", line=dict(color="green")
 ))
 
+# Aikajanat
 fig.update_layout(
     xaxis=dict(
         title="Aika (Suomen aika)",
         tickformat="%H:%M",
-        titlefont=dict(size=16),
-        tickfont=dict(size=14)
+        domain=[0.0, 1.0],
+        anchor="y"
+    ),
+    xaxis2=dict(
+        title="Aika (UTC)",
+        overlaying="x",
+        side="top",
+        tickvals=df_merged["Timestamp_local"],
+        ticktext=df_merged["Timestamp"].dt.strftime("%H:%M"),
+        showgrid=False
     ),
     yaxis=dict(
         title="Taajuus (Hz)",
-        range=[y_axis_min, y_axis_max],
-        titlefont=dict(size=16),
-        tickfont=dict(size=14)
+        range=[y_axis_min, y_axis_max]
     ),
     height=600,
     margin=dict(t=60, b=40, l=60, r=40),
     legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-    title=dict(text="Taajuusvertailu: Norja (1 min) & Suomi (3 min)", font=dict(size=20))
+    title="Taajuusvertailu: Norja (1 min) & Suomi (3 min)"
 )
 
 st.plotly_chart(fig, use_container_width=True)
