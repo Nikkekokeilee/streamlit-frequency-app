@@ -98,7 +98,6 @@ tabs = st.tabs(["Taajuudet", "Asetukset"])
 with tabs[0]:
     st.subheader("📊 Taajuus (Norja & Suomi)")
 
-    # Valintaruudut
     col1, col2 = st.columns(2)
     with col1:
         show_norway = st.checkbox("Näytä Norjan taajuus", value=True)
@@ -119,6 +118,8 @@ with tabs[0]:
         fi_data = response.json()
         df_fi = pd.DataFrame(fi_data["data"])
         df_fi["Timestamp"] = pd.to_datetime(df_fi["startTime"])
+        if df_fi["Timestamp"].dt.tz is not None:
+            df_fi["Timestamp"] = df_fi["Timestamp"].dt.tz_localize(None)
         df_fi["FrequencyHz"] = df_fi["value"]
         filtered_fi = df_fi[["Timestamp", "FrequencyHz"]]
     except Exception as e:
@@ -128,7 +129,6 @@ with tabs[0]:
     if (show_norway and not filtered.empty) or (show_finland and not filtered_fi.empty):
         fig = go.Figure()
 
-        # Yhdistetty aikaväli ja y-akselin rajat
         timestamps = pd.concat([
             filtered["Timestamp"] if show_norway else pd.Series([], dtype='datetime64[ns]'),
             filtered_fi["Timestamp"] if show_finland else pd.Series([], dtype='datetime64[ns]')
