@@ -130,13 +130,14 @@ with tabs[0]:
 
         # Yhdistetty aikaväli ja y-akselin rajat
         timestamps = pd.concat([
-            filtered["Timestamp"] if show_norway else pd.Series(dtype='datetime64[ns]'),
-            filtered_fi["Timestamp"] if show_finland else pd.Series(dtype='datetime64[ns]')
+            filtered["Timestamp"] if show_norway else pd.Series([], dtype='datetime64[ns]'),
+            filtered_fi["Timestamp"] if show_finland else pd.Series([], dtype='datetime64[ns]')
         ])
         freqs = pd.concat([
-            filtered["FrequencyHz"] if show_norway else pd.Series(dtype='float'),
-            filtered_fi["FrequencyHz"] if show_finland else pd.Series(dtype='float')
+            filtered["FrequencyHz"] if show_norway else pd.Series([], dtype='float'),
+            filtered_fi["FrequencyHz"] if show_finland else pd.Series([], dtype='float')
         ])
+
         if not timestamps.empty and not freqs.empty:
             y_min = freqs.min()
             y_max = freqs.max()
