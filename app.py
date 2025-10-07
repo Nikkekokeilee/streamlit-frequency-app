@@ -60,7 +60,7 @@ with st.sidebar:
     start_time = now - timedelta(minutes=interval_minutes)
     end_time = now
 
-# Hae Norjan taajuusdata
+    # Hae Nordicin taajuusdata
 def fetch_nordic_data():
     try:
         # Statnett API only supports date, not time, so fetch for the whole day
@@ -73,7 +73,7 @@ def fetch_nordic_data():
         period_tick_ms = data["PeriodTickMs"]
         measurements = data["Measurements"]
         if not measurements:
-            st.warning("Norjan datasta ei löytynyt mittauksia. Yritä myöhemmin uudelleen.")
+            st.warning("Nordicin datasta ei löytynyt mittauksia. Yritä myöhemmin uudelleen." if lang=="Suomi" else "No Nordic frequency measurements found. Try again later.")
             return pd.DataFrame()
         start_dt = datetime(1970, 1, 1) + timedelta(milliseconds=start_point_utc)
         period_sec = period_tick_ms / 1000
@@ -86,10 +86,10 @@ def fetch_nordic_data():
         mask = (df_resampled["Timestamp"] >= start_time) & (df_resampled["Timestamp"] <= end_time)
         return df_resampled.loc[mask].reset_index(drop=True)
     except requests.exceptions.Timeout:
-        st.error("Norjan datan haku aikakatkaistiin. Tarkista verkkoyhteys ja yritä uudelleen.")
+    st.error("Nordicin datan haku aikakatkaistiin. Tarkista verkkoyhteys ja yritä uudelleen." if lang=="Suomi" else "Nordic frequency fetch timed out. Check your connection and try again.")
         return pd.DataFrame()
     except Exception as e:
-        st.error(f"Norjan datan haussa tapahtui virhe: {e}. Yritä päivittää sivu tai tarkista API-palvelun tila.")
+    st.error((f"Nordicin datan haussa tapahtui virhe: {e}. Yritä päivittää sivu tai tarkista API-palvelun tila." if lang=="Suomi" else f"Error fetching Nordic frequency: {e}. Try refreshing or check the API status."))
         return pd.DataFrame()
 
 # Hae Suomen taajuusdata
@@ -138,7 +138,7 @@ def update_data():
             df_nordic.sort_values("Timestamp"),
             on="Timestamp",
             direction="nearest",
-            suffixes=("_Suomi", "_Norja")
+            suffixes=("_Suomi", "_Nordic")
         )
         st.session_state.data = df_merged
         st.session_state.data_cache[cache_key] = df_merged
@@ -178,35 +178,33 @@ if refresh_countdown is not None and st.session_state.auto_refresh:
 # Ohje/info-osio
 with st.expander("ℹ️ Ohjeet ja tietoa" if lang=="Suomi" else "ℹ️ Help & Info"):
     if lang == "Suomi":
-        st.markdown("""
+    st.markdown("""
 **Tietolähteet:**
-- Norjan taajuus: [Statnett Driftsdata](https://driftsdata.statnett.no/)
+- Nordicin taajuus: [Statnett Driftsdata](https://driftsdata.statnett.no/)
 - Suomen taajuus: [Fingrid Datahub](https://data.fingrid.fi/)
 
 **Päivitys:**
 - Data päivittyy automaattisesti valitulla aikavälillä, tai voit päivittää manuaalisesti.
-- Voit valita kiinteän tai mukautetun aikavälin.
 
 **Kuvaajan tulkinta:**
 - Punainen alue: taajuus alle 49.95 Hz (alhainen)
 - Sininen alue: taajuus yli 50.05 Hz (korkea)
-- Voit piilottaa/näyttää maiden käyrät ja tarkastella yhteenvetotilastoja.
-        """)
+- Voit piilottaa/näyttää käyrät ja tarkastella yhteenvetotilastoja.
+    """)
     else:
-        st.markdown("""
+    st.markdown("""
 **Data sources:**
-- Norway frequency: [Statnett Driftsdata](https://driftsdata.statnett.no/)
+- Nordic frequency: [Statnett Driftsdata](https://driftsdata.statnett.no/)
 - Finland frequency: [Fingrid Datahub](https://data.fingrid.fi/)
 
 **Refresh:**
 - Data refreshes automatically at the selected interval, or you can refresh manually.
-- You can select a fixed or custom time range.
 
 **Chart interpretation:**
 - Red area: frequency below 49.95 Hz (low)
 - Blue area: frequency above 50.05 Hz (high)
-- You can hide/show country curves and view summary statistics.
-        """)
+- You can hide/show curves and view summary statistics.
+    """)
 
 # Näytä kuvaaja
 df_merged = st.session_state.data
@@ -239,16 +237,15 @@ fig.add_shape(
     fillcolor="rgba(0,0,255,0.1)", line_width=0, layer="below"
 )
 
-# Norjan taajuus
-# Norjan taajuus
+# Nordic taajuus
 fig.add_trace(go.Scatter(
     x=df_merged["Timestamp_local"],
-    y=df_merged["FrequencyHz_Norja"],
+    y=df_merged["FrequencyHz_Nordic"],
     mode="lines+markers",
-    name="Norja (1 min)" if lang=="Suomi" else "Norway (1 min)",
+    name="Nordic (1 min)",
     line=dict(color="#1f77b4"),  # blue, colorblind-friendly
     visible=True,
-    hovertemplate=("Aika: %{x}<br>Norja: %{y:.3f} Hz<extra></extra>" if lang=="Suomi" else "Time: %{x}<br>Norway: %{y:.3f} Hz<extra></extra>")
+    hovertemplate=("Aika: %{x}<br>Nordic: %{y:.3f} Hz<extra></extra>" if lang=="Suomi" else "Time: %{x}<br>Nordic: %{y:.3f} Hz<extra></extra>")
 ))
 
 # Suomen taajuus
@@ -303,22 +300,22 @@ fig.update_layout(
 
 
 # Toggle traces (legend click is default in Plotly, but add checkboxes for clarity)
-with st.expander("Näytä/piilota maat kuvaajassa" if lang=="Suomi" else "Show/hide countries in chart"):
-    show_norja = st.checkbox("Näytä Norja" if lang=="Suomi" else "Show Norway", value=True)
+with st.expander("Näytä/piilota käyrät kuvaajassa" if lang=="Suomi" else "Show/hide curves in chart"):
+    show_nordic = st.checkbox("Näytä Nordic", value=True)
     show_suomi = st.checkbox("Näytä Suomi" if lang=="Suomi" else "Show Finland", value=True)
-fig.data[0].visible = show_norja
+fig.data[0].visible = show_nordic
 fig.data[1].visible = show_suomi
 
 st.plotly_chart(fig, use_container_width=True)
 
 # Summary statistics
 with st.expander("📈 Yhteenveto valitulta aikaväliltä" if lang=="Suomi" else "📈 Summary for selected period"):
-    st.write("**Norja**" if lang=="Suomi" else "**Norway**")
-    if show_norja and not df_merged["FrequencyHz_Norja"].isnull().all():
-        st.write((f"Min: {df_merged['FrequencyHz_Norja'].min():.3f} Hz" if lang=="Suomi" else f"Min: {df_merged['FrequencyHz_Norja'].min():.3f} Hz"))
-        st.write((f"Max: {df_merged['FrequencyHz_Norja'].max():.3f} Hz" if lang=="Suomi" else f"Max: {df_merged['FrequencyHz_Norja'].max():.3f} Hz"))
-        st.write((f"Keskiarvo: {df_merged['FrequencyHz_Norja'].mean():.3f} Hz" if lang=="Suomi" else f"Mean: {df_merged['FrequencyHz_Norja'].mean():.3f} Hz"))
-        st.write((f"Keskihajonta: {df_merged['FrequencyHz_Norja'].std():.3f} Hz" if lang=="Suomi" else f"Std: {df_merged['FrequencyHz_Norja'].std():.3f} Hz"))
+    st.write("**Nordic**")
+    if show_nordic and not df_merged["FrequencyHz_Nordic"].isnull().all():
+        st.write(f"Min: {df_merged['FrequencyHz_Nordic'].min():.3f} Hz")
+        st.write(f"Max: {df_merged['FrequencyHz_Nordic'].max():.3f} Hz")
+        st.write(f"Keskiarvo: {df_merged['FrequencyHz_Nordic'].mean():.3f} Hz" if lang=="Suomi" else f"Mean: {df_merged['FrequencyHz_Nordic'].mean():.3f} Hz")
+        st.write(f"Keskihajonta: {df_merged['FrequencyHz_Nordic'].std():.3f} Hz" if lang=="Suomi" else f"Std: {df_merged['FrequencyHz_Nordic'].std():.3f} Hz")
     else:
         st.write("Ei dataa." if lang=="Suomi" else "No data.")
     st.write("**Suomi**" if lang=="Suomi" else "**Finland**")
