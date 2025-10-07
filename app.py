@@ -1,3 +1,53 @@
+# --- Finland Up-Regulation Price (Ylössäätöhinta) Chart ---
+def fetch_fi_upreg_price(start_time, end_time):
+    try:
+        url = (
+            f"https://data.fingrid.fi/api/datasets/244/data?"
+            f"startTime={start_time.isoformat()}Z&endTime={end_time.isoformat()}Z"
+        )
+        headers = {"x-api-key": api_key}
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+        if "data" not in data or not data["data"]:
+            return pd.DataFrame()
+        df = pd.DataFrame(data["data"])
+        df["Timestamp"] = pd.to_datetime(df["startTime"]).dt.tz_localize(None)
+        df["PriceEUR"] = df["value"]
+        df = df[["Timestamp", "PriceEUR"]]
+        return df
+    except Exception as e:
+        st.warning(f"Ylössäätöhinnan haku epäonnistui: {e}")
+        return pd.DataFrame()
+
+# Show up-regulation price for the 4 latest prices
+with st.expander("📈 Ylössäätöhinta (Suomi, 4 viimeisintä hintaa)"):
+    # Fetch a bit more data to ensure we get the latest 4
+    upreg_start = datetime.utcnow() - timedelta(hours=2)
+    upreg_end = datetime.utcnow()
+    df_upreg = fetch_fi_upreg_price(upreg_start, upreg_end)
+    if not df_upreg.empty:
+        df_upreg = df_upreg.sort_values("Timestamp").tail(4)
+        fig_upreg = go.Figure()
+        fig_upreg.add_trace(go.Scatter(
+            x=df_upreg["Timestamp"],
+            y=df_upreg["PriceEUR"],
+            mode="lines+markers",
+            name="Ylössäätöhinta (EUR/MWh)",
+            line=dict(color="#2ca02c"),  # green, colorblind-friendly
+            hovertemplate="Aika: %{x}<br>Hinta: %{y:.2f} €/MWh<extra></extra>"
+        ))
+        fig_upreg.update_layout(
+            xaxis_title="Aika (UTC)",
+            yaxis_title="Hinta (EUR/MWh)",
+            height=400,
+            margin=dict(t=40, b=40, l=60, r=40),
+            legend=dict(font=dict(size=14)),
+            title=dict(text="Ylössäätöhinta säätösähkömarkkinoilla (Suomi, 4 viimeisintä hintaa)", font=dict(size=20))
+        )
+        st.plotly_chart(fig_upreg, use_container_width=True)
+    else:
+        st.info("Ei saatavilla olevaa ylössäätöhintadataa.")
 import streamlit as st
 import pandas as pd
 import requests
