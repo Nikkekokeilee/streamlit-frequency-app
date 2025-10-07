@@ -1,49 +1,195 @@
 
-
 import streamlit as st
 import pandas as pd
 import requests
 from datetime import datetime, timedelta
 import pytz
 import plotly.graph_objects as go
-import streamlit.components.v1 as components
 
+# Set Streamlit theme and page config for a modern look
 st.set_page_config(
-    page_title="Taajuusvertailu | Frequency Comparison",
     layout="wide",
+    page_title="Nordic & Finland Frequency",
+    page_icon="📊",
     initial_sidebar_state="expanded"
 )
 
-# Responsive chart height: get window height via JS and Streamlit components
-if "window_height" not in st.session_state:
-    st.session_state["window_height"] = 900
-components.html(
-    """
-    <script>
-    (function() {
-        function sendHeight() {
-            const h = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
-            const streamlitDoc = window.parent.document;
-            const input = streamlitDoc.querySelector('input[data-testid="stWindowHeight"]');
-            if (input) { input.value = h; input.dispatchEvent(new Event('input', { bubbles: true })); }
-        }
-        window.addEventListener('resize', sendHeight);
-        sendHeight();
-    })();
-    </script>
-    <input type="hidden" id="stWindowHeight" data-testid="stWindowHeight" />
-    """,
-    height=0,
-    width=0,
-)
-window_height = st.session_state.get("window_height", 900)
-try:
-    window_height = int(window_height)
-except Exception:
-    window_height = 900
-# Use 60% of window height for chart, min 350, max 1100
-chart_height = max(350, min(int(window_height * 0.6), 1100))
 
+
+# Theme selection (light/dark)
+with st.sidebar:
+    st.markdown("---")
+    theme = st.radio("Teema / Theme", ["Tumma / Dark", "Vaalea / Light"], index=0, key="theme_select")
+    st.session_state["theme"] = theme
+
+# Theme colors
+if st.session_state.get("theme", "Tumma / Dark") == "Vaalea / Light":
+    bg = "#F5F6FA"
+    fg = "#18191A"
+    sidebar_bg = "#E9ECF1"
+    plot_bg = "#F5F6FA"
+    plot_paper = "#F5F6FA"
+    color_nordic = "#1976D2"
+    color_finland = "#FFA000"
+    color_low = "#FF5252"
+    color_high = "#1976D2"
+    caption = "#444"
+else:
+    bg = "#18191A"
+    fg = "#FAFAFA"
+    sidebar_bg = "#23272F"
+    plot_bg = "#23272F"
+    plot_paper = "#23272F"
+    color_nordic = "#4FC3F7"
+    color_finland = "#FFD54F"
+    color_low = "#FF5252"
+    color_high = "#42A5F5"
+    caption = "#E0E0E0"
+
+# Animated/smooth loading and hover effects in CSS
+st.markdown(
+    f"""
+    <style>
+    html, body, .block-container, .stApp {{
+        background-color: {bg} !important;
+        color: {fg} !important;
+        transition: background 0.5s, color 0.5s;
+    }}
+    header[data-testid="stHeader"], .st-emotion-cache-18ni7ap, .st-emotion-cache-1avcm0n {{
+        background: {bg} !important;
+        color: {fg} !important;
+        border-bottom: 1px solid #23272F !important;
+        transition: background 0.5s, color 0.5s;
+    }}
+    .sidebar-content, .css-1d391kg, .css-1lcbmhc, .stSidebar {{
+        background-color: {sidebar_bg} !important;
+        color: {fg} !important;
+        transition: background 0.5s, color 0.5s;
+    }}
+    .stSlider label, .stSlider .css-1y4p8pa, .stSlider .css-1y4p8pa span, .stSlider .css-1y4p8pa div, .stSlider .css-1y4p8pa input, .stSlider .css-1y4p8pa .css-1n76uvr, .stSlider .css-1n76uvr, .stSlider .css-1n76uvr span, .stSlider .css-1n76uvr div, .stSlider .css-1n76uvr input {{
+        color: {fg} !important;
+    }}
+    .stSlider > div[data-baseweb="slider"] {{
+        margin-bottom: 1.5rem;
+    }}
+    .stSlider .rc-slider-mark-text, .stSlider .rc-slider-value, .stSlider .rc-slider-tooltip-inner {{
+        color: {fg} !important;
+        background: {sidebar_bg} !important;
+        font-weight: 700;
+    }}
+    .stCheckbox {{
+        margin-bottom: 0.5rem;
+    }}
+    .stExpanderHeader {{
+        font-size: 1.2rem;
+        font-weight: 800;
+        color: {fg} !important;
+        letter-spacing: 0.01em;
+        transition: color 0.5s;
+    }}
+    .stPlotlyChart {{
+        background: {plot_bg} !important;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+        padding: 1rem;
+        transition: background 0.5s;
+        opacity: 0;
+        animation: fadein 0.7s forwards;
+    }}
+    @keyframes fadein {{
+        from {{ opacity: 0; }}
+        to {{ opacity: 1; }}
+    }}
+    .stButton > button {{
+        border-radius: 8px;
+        font-weight: 800;
+        background: {sidebar_bg};
+        color: {fg};
+        border: 1px solid #888;
+        transition: background 0.3s, color 0.3s;
+    }}
+    .stButton > button:hover {{
+        background: #333;
+        color: #fff;
+        box-shadow: 0 0 8px #888;
+    }}
+    .stCaption {{
+        color: {caption};
+        font-size: 1.08em;
+        font-weight: 600;
+        transition: color 0.5s;
+    }}
+    .stMarkdown, .stText, .stSubheader, .stHeader, .stTitle, .stDataFrame, .stTable, .stExpanderContent, .stAlert, .stException, .stWarning, .stInfo, .stSuccess, .stError {{
+        color: {fg} !important;
+        font-weight: 600;
+        background: transparent !important;
+        transition: color 0.5s;
+    }}
+    .stDataFrame, .stTable {{
+        background: {sidebar_bg} !important;
+        border-radius: 8px;
+    }}
+    .stExpanderContent {{
+        background: {sidebar_bg} !important;
+    }}
+    .st-bb, .st-cq, .st-cv, .st-cw, .st-cx, .st-cy, .st-cz, .st-da, .st-db, .st-dc, .st-dd, .st-de, .st-df, .st-dg, .st-dh, .st-di, .st-dj, .st-dk, .st-dl, .st-dm, .st-dn, .st-do, .st-dp, .st-dq, .st-dr, .st-ds, .st-dt, .st-du, .st-dv, .st-dw, .st-dx, .st-dy, .st-dz, .st-e0, .st-e1, .st-e2, .st-e3, .st-e4, .st-e5, .st-e6, .st-e7, .st-e8, .st-e9, .st-ea, .st-eb, .st-ec, .st-ed, .st-ee, .st-ef, .st-eg, .st-eh, .st-ei, .st-ej, .st-ek, .st-el, .st-em, .st-en, .st-eo, .st-ep, .st-eq, .st-er, .st-es, .st-et, .st-eu, .st-ev, .st-ew, .st-ex, .st-ey, .st-ez {{
+        background-color: {sidebar_bg} !important;
+        color: {fg} !important;
+    }}
+    /* RESPONSIVE DESIGN */
+    @media (max-width: 900px) {{
+        html, body, .block-container, .stApp {{
+            font-size: 15px !important;
+        }}
+        .stPlotlyChart {{
+            padding: 0.5rem !important;
+        }}
+        .stExpanderHeader {{
+            font-size: 1.05rem !important;
+        }}
+        .stButton > button {{
+            font-size: 1rem !important;
+        }}
+        .stSidebar, .sidebar-content, .css-1d391kg, .css-1lcbmhc {{
+            font-size: 15px !important;
+        }}
+    }}
+    @media (max-width: 600px) {{
+        html, body, .block-container, .stApp {{
+            font-size: 13px !important;
+        }}
+        .stPlotlyChart {{
+            padding: 0.2rem !important;
+        }}
+        .stExpanderHeader {{
+            font-size: 0.95rem !important;
+        }}
+        .stButton > button {{
+            font-size: 0.95rem !important;
+        }}
+        .stSidebar, .sidebar-content, .css-1d391kg, .css-1lcbmhc {{
+            font-size: 13px !important;
+        }}
+        .stPlotlyChart {{
+            min-height: 350px !important;
+            height: 350px !important;
+        }}
+    }}
+    /* Hover effect for expander headers and chart */
+    .stExpanderHeader:hover {{
+        color: #FFEB3B !important;
+        cursor: pointer;
+        text-shadow: 0 0 8px #FFEB3B44;
+        transition: color 0.2s, text-shadow 0.2s;
+    }}
+    .stPlotlyChart:hover {{
+        box-shadow: 0 0 24px #1976D2AA;
+        transition: box-shadow 0.3s;
+    }}
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 
 # Remove conflicting light theme CSS
 
@@ -229,23 +375,17 @@ st.markdown("---")
 with st.expander("ℹ️ Ohjeet ja tietoa" if lang=="Suomi" else "ℹ️ Help & Info", expanded=False):
     if lang == "Suomi":
         st.markdown("""
-st.markdown("""
-**Tietolähteet:**  
-• Nordicin taajuus: [Statnett Driftsdata](https://driftsdata.statnett.no/)  
-• Suomen taajuus: [Fingrid Datahub](https://data.fingrid.fi/)
-""")
+**Tietolähteet:**
+- Nordicin taajuus: [Statnett Driftsdata](https://driftsdata.statnett.no/)
+- Suomen taajuus: [Fingrid Datahub](https://data.fingrid.fi/)
 
-st.markdown("""
-**Päivitys:**  
-Data päivittyy automaattisesti valitulla aikavälillä, tai voit päivittää manuaalisesti.
-""")
+**Päivitys:**
+- Data päivittyy automaattisesti valitulla aikavälillä, tai voit päivittää manuaalisesti.
 
-st.markdown("""
-**Kuvaajan tulkinta:**  
-• Punainen alue: taajuus alle 49.95 Hz (alhainen)  
-• Sininen alue: taajuus yli 50.05 Hz (korkea)  
-• Voit piilottaa/näyttää käyrät ja tarkastella yhteenvetotilastoja.
-""")
+**Kuvaajan tulkinta:**
+- Punainen alue: taajuus alle 49.95 Hz (alhainen)
+- Sininen alue: taajuus yli 50.05 Hz (korkea)
+- Voit piilottaa/näyttää käyrät ja tarkastella yhteenvetotilastoja.
         """)
     else:
         st.markdown("""
@@ -351,7 +491,7 @@ fig.update_layout(
         fixedrange=False
     ),
     dragmode="zoom",  # allow box zoom (both axes)
-    height=chart_height,
+    height=1100,
     margin=dict(t=60, b=40, l=60, r=40),
     legend=dict(
         orientation="h",
