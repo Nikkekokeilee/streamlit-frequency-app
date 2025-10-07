@@ -33,8 +33,17 @@ st.markdown(
         background-color: #23272F !important;
         color: #FAFAFA !important;
     }
+    /* SLIDER LABELS, VALUES, TICKS */
+    .stSlider label, .stSlider .css-1y4p8pa, .stSlider .css-1y4p8pa span, .stSlider .css-1y4p8pa div, .stSlider .css-1y4p8pa input, .stSlider .css-1y4p8pa .css-1n76uvr, .stSlider .css-1n76uvr, .stSlider .css-1n76uvr span, .stSlider .css-1n76uvr div, .stSlider .css-1n76uvr input {
+        color: #FAFAFA !important;
+    }
     .stSlider > div[data-baseweb="slider"] {
         margin-bottom: 1.5rem;
+    }
+    .stSlider .rc-slider-mark-text, .stSlider .rc-slider-value, .stSlider .rc-slider-tooltip-inner {
+        color: #FAFAFA !important;
+        background: #23272F !important;
+        font-weight: 700;
     }
     .stCheckbox {
         margin-bottom: 0.5rem;
