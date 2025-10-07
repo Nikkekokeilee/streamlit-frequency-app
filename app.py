@@ -61,6 +61,41 @@ with st.sidebar:
     end_time = now
 
     # Hae Nordicin taajuusdata
+
+# Hae Suomen säätösähkön ylös- ja alassäätö (activated regulation power up/down)
+def fetch_finnish_regulation_power():
+    # Fingrid dataset 124: up, 125: down
+    try:
+        base_url = "https://data.fingrid.fi/api/datasets/"
+        headers = {"x-api-key": api_key}
+        # Up-regulation
+        url_up = f"{base_url}124/data?startTime={start_time.isoformat()}Z&endTime={end_time.isoformat()}Z"
+        resp_up = requests.get(url_up, headers=headers, timeout=10)
+        resp_up.raise_for_status()
+        data_up = resp_up.json().get("data", [])
+        df_up = pd.DataFrame(data_up)
+        if not df_up.empty:
+            df_up["Timestamp"] = pd.to_datetime(df_up["startTime"]).dt.tz_localize(None)
+            df_up = df_up[["Timestamp", "value"]].rename(columns={"value": "RegUp_MW"})
+        else:
+            df_up = pd.DataFrame(columns=["Timestamp", "RegUp_MW"])
+        # Down-regulation
+        url_down = f"{base_url}125/data?startTime={start_time.isoformat()}Z&endTime={end_time.isoformat()}Z"
+        resp_down = requests.get(url_down, headers=headers, timeout=10)
+        resp_down.raise_for_status()
+        data_down = resp_down.json().get("data", [])
+        df_down = pd.DataFrame(data_down)
+        if not df_down.empty:
+            df_down["Timestamp"] = pd.to_datetime(df_down["startTime"]).dt.tz_localize(None)
+            df_down = df_down[["Timestamp", "value"]].rename(columns={"value": "RegDown_MW"})
+        else:
+            df_down = pd.DataFrame(columns=["Timestamp", "RegDown_MW"])
+        # Merge up and down
+        df_reg = pd.merge(df_up, df_down, on="Timestamp", how="outer").sort_values("Timestamp")
+        return df_reg
+    except Exception as e:
+        st.error(f"Virhe haettaessa Suomen säätösähköä: {e}" if lang=="Suomi" else f"Error fetching Finnish regulation power: {e}")
+        return pd.DataFrame(columns=["Timestamp", "RegUp_MW", "RegDown_MW"])
 def fetch_nordic_data():
     try:
         # Statnett API only supports date, not time, so fetch for the whole day
@@ -129,6 +164,7 @@ def update_data():
     with st.spinner("Haetaan dataa..."):
         df_nordic = fetch_nordic_data()
         df_finnish = fetch_finnish_data()
+        df_reg_fi = fetch_finnish_regulation_power()
         if df_nordic.empty or df_finnish.empty:
             st.warning("Datan haku epäonnistui tai dataa ei löytynyt. Tarkista yhteys ja yritä uudelleen.")
             st.session_state.data = None
@@ -140,6 +176,14 @@ def update_data():
             direction="nearest",
             suffixes=("_Suomi", "_Nordic")
         )
+        # Merge regulation power (nearest)
+        if not df_reg_fi.empty:
+            df_merged = pd.merge_asof(
+                df_merged.sort_values("Timestamp"),
+                df_reg_fi.sort_values("Timestamp"),
+                on="Timestamp",
+                direction="nearest"
+            )
         st.session_state.data = df_merged
         st.session_state.data_cache[cache_key] = df_merged
         st.session_state.last_updated = datetime.utcnow()
@@ -213,6 +257,7 @@ df_merged = st.session_state.data
 helsinki_tz = pytz.timezone("Europe/Helsinki")
 df_merged["Timestamp_local"] = df_merged["Timestamp"].dt.tz_localize("UTC").dt.tz_convert(helsinki_tz)
 
+
 # Piirrä kuvaaja
 fig = go.Figure()
 
@@ -259,6 +304,32 @@ fig.add_trace(go.Scatter(
     hovertemplate=("Aika: %{x}<br>Suomi: %{y:.3f} Hz<extra></extra>" if lang=="Suomi" else "Time: %{x}<br>Finland: %{y:.3f} Hz<extra></extra>")
 ))
 
+# Suomen säätösähkö ylös (up-regulation)
+if "RegUp_MW" in df_merged.columns and not df_merged["RegUp_MW"].isnull().all():
+    fig.add_trace(go.Scatter(
+        x=df_merged["Timestamp_local"],
+        y=df_merged["RegUp_MW"],
+        mode="lines+markers",
+        name="Suomi säätö ylös (MW)" if lang=="Suomi" else "Finland Reg. Up (MW)",
+        line=dict(color="#2ca02c", dash="dash"),  # green, dashed
+        visible=True,
+        yaxis="y2",
+        hovertemplate=("Aika: %{x}<br>Ylös-säätö: %{y:.0f} MW<extra></extra>" if lang=="Suomi" else "Time: %{x}<br>Reg. Up: %{y:.0f} MW<extra></extra>")
+    ))
+
+# Suomen säätösähkö alas (down-regulation)
+if "RegDown_MW" in df_merged.columns and not df_merged["RegDown_MW"].isnull().all():
+    fig.add_trace(go.Scatter(
+        x=df_merged["Timestamp_local"],
+        y=df_merged["RegDown_MW"],
+        mode="lines+markers",
+        name="Suomi säätö alas (MW)" if lang=="Suomi" else "Finland Reg. Down (MW)",
+        line=dict(color="#d62728", dash="dot"),  # red, dotted
+        visible=True,
+        yaxis="y2",
+        hovertemplate=("Aika: %{x}<br>Alas-säätö: %{y:.0f} MW<extra></extra>" if lang=="Suomi" else "Time: %{x}<br>Reg. Down: %{y:.0f} MW<extra></extra>")
+    ))
+
 # Aikajanat
 fig.update_layout(
     xaxis=dict(
@@ -282,6 +353,14 @@ fig.update_layout(
         range=[y_axis_min, y_axis_max],
         tickfont=dict(size=18)
     ),
+    yaxis2=dict(
+        title=dict(text="Säätösähkö (MW)" if lang=="Suomi" else "Regulation Power (MW)"),
+        overlaying="y",
+        side="right",
+        showgrid=False,
+        tickfont=dict(size=16),
+        anchor="x"
+    ),
     height=600,
     margin=dict(t=60, b=40, l=60, r=40),
     legend=dict(
@@ -300,11 +379,19 @@ fig.update_layout(
 
 
 # Toggle traces (legend click is default in Plotly, but add checkboxes for clarity)
+
+# Toggle traces (legend click is default in Plotly, but add checkboxes for clarity)
 with st.expander("Näytä/piilota käyrät kuvaajassa" if lang=="Suomi" else "Show/hide curves in chart"):
     show_nordic = st.checkbox("Näytä Nordic", value=True)
     show_suomi = st.checkbox("Näytä Suomi" if lang=="Suomi" else "Show Finland", value=True)
+    show_regup = st.checkbox("Näytä Suomi säätö ylös" if lang=="Suomi" else "Show Finland Reg. Up", value=True) if "RegUp_MW" in df_merged.columns else False
+    show_regdown = st.checkbox("Näytä Suomi säätö alas" if lang=="Suomi" else "Show Finland Reg. Down", value=True) if "RegDown_MW" in df_merged.columns else False
 fig.data[0].visible = show_nordic
 fig.data[1].visible = show_suomi
+if "RegUp_MW" in df_merged.columns and len(fig.data) > 2:
+    fig.data[2].visible = show_regup
+if "RegDown_MW" in df_merged.columns and len(fig.data) > 3:
+    fig.data[3].visible = show_regdown
 
 st.plotly_chart(fig, use_container_width=True)
 
