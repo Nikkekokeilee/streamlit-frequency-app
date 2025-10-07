@@ -415,7 +415,39 @@ with st.expander("Näytä/piilota käyrät kuvaajassa" if lang=="Suomi" else "Sh
 fig.data[0].visible = show_nordic
 fig.data[1].visible = show_suomi
 
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(
+    fig,
+    use_container_width=True,
+    config={
+        "displayModeBar": True,
+        "modeBar": {
+            "orientation": "h"
+        },
+        "displaylogo": False,
+        "modeBarButtonsToRemove": [],
+        "toImageButtonOptions": {
+            "format": "png",
+            "filename": "frequency_chart",
+            "height": 800,
+            "width": 1200,
+            "scale": 2
+        }
+    }
+)
+
+# Custom CSS to move and enlarge the Plotly modebar
+st.markdown(
+    """
+    <style>
+    .modebar {
+        top: 40px !important;
+        right: 40px !important;
+        zoom: 1.35;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 
 # Summary statistics
 with st.expander("📈 Yhteenveto valitulta aikaväliltä" if lang=="Suomi" else "📈 Summary for selected period"):
