@@ -23,6 +23,12 @@ st.markdown(
         background-color: #18191A !important;
         color: #F5F6FA !important;
     }
+    /* Top header and main menu bar */
+    header[data-testid="stHeader"], .st-emotion-cache-18ni7ap, .st-emotion-cache-1avcm0n {
+        background: #18191A !important;
+        color: #F5F6FA !important;
+        border-bottom: 1px solid #23272F !important;
+    }
     .sidebar-content, .css-1d391kg, .css-1lcbmhc, .stSidebar {
         background-color: #23272F !important;
         color: #F5F6FA !important;
@@ -35,7 +41,7 @@ st.markdown(
     }
     .stExpanderHeader {
         font-size: 1.2rem;
-        font-weight: 700;
+        font-weight: 800;
         color: #F5F6FA !important;
         letter-spacing: 0.01em;
     }
@@ -47,7 +53,7 @@ st.markdown(
     }
     .stButton > button {
         border-radius: 8px;
-        font-weight: 700;
+        font-weight: 800;
         background: #23272F;
         color: #F5F6FA;
         border: 1px solid #888;
@@ -58,11 +64,13 @@ st.markdown(
     }
     .stCaption {
         color: #B0B0B0;
-        font-size: 1.05em;
+        font-size: 1.08em;
+        font-weight: 600;
     }
-    .stMarkdown, .stText, .stSubheader, .stHeader, .stTitle, .stDataFrame, .stTable, .stExpanderContent {
+    .stMarkdown, .stText, .stSubheader, .stHeader, .stTitle, .stDataFrame, .stTable, .stExpanderContent, .stAlert, .stException, .stWarning, .stInfo, .stSuccess, .stError {
         color: #F5F6FA !important;
-        font-weight: 500;
+        font-weight: 600;
+        background: transparent !important;
     }
     .stDataFrame, .stTable {
         background: #23272F !important;
@@ -73,6 +81,7 @@ st.markdown(
     }
     .st-bb, .st-cq, .st-cv, .st-cw, .st-cx, .st-cy, .st-cz, .st-da, .st-db, .st-dc, .st-dd, .st-de, .st-df, .st-dg, .st-dh, .st-di, .st-dj, .st-dk, .st-dl, .st-dm, .st-dn, .st-do, .st-dp, .st-dq, .st-dr, .st-ds, .st-dt, .st-du, .st-dv, .st-dw, .st-dx, .st-dy, .st-dz, .st-e0, .st-e1, .st-e2, .st-e3, .st-e4, .st-e5, .st-e6, .st-e7, .st-e8, .st-e9, .st-ea, .st-eb, .st-ec, .st-ed, .st-ee, .st-ef, .st-eg, .st-eh, .st-ei, .st-ej, .st-ek, .st-el, .st-em, .st-en, .st-eo, .st-ep, .st-eq, .st-er, .st-es, .st-et, .st-eu, .st-ev, .st-ew, .st-ex, .st-ey, .st-ez {
         background-color: #23272F !important;
+        color: #F5F6FA !important;
     }
     </style>
     """,
@@ -380,7 +389,7 @@ fig.update_layout(
         fixedrange=False
     ),
     dragmode="zoom",  # allow box zoom (both axes)
-    height=600,
+    height=800,
     margin=dict(t=60, b=40, l=60, r=40),
     legend=dict(
         orientation="h",
