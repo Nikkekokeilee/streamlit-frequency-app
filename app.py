@@ -48,13 +48,12 @@ with st.sidebar:
     interval_labels = {"10 min": 0, "30 min": 1, "1 h": 2, "3 h": 3}
     interval_idx = interval_labels.get(st.session_state.interval, 2)
     interval_slider = st.slider(
-        "Valitse aikaväli" if lang=="Suomi" else "Select interval",
+        "Valitse aikaväli: 0=10min, 1=30min, 2=1h, 3=3h" if lang=="Suomi" else "Select interval: 0=10min, 1=30min, 2=1h, 3=3h",
         min_value=0, max_value=3, value=interval_idx,
-        format="%d",
-        step=1,
-        labels=interval_options
+        step=1
     )
     selected_interval = interval_options[interval_slider]
+    st.write(f"Valittu: {selected_interval}" if lang=="Suomi" else f"Selected: {selected_interval}")
     if selected_interval != st.session_state.interval:
         st.session_state.interval = selected_interval
     use_custom_range = st.checkbox("Käytä mukautettua aikaväliä", value=False)
