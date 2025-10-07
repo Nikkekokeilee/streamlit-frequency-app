@@ -1,60 +1,3 @@
-# Tarkista API-avain heti alussa
-if "FINGRID_API_KEY" not in st.secrets:
-    st.error("Fingridin API-avainta ei ole määritetty. Lisää se tiedostoon .streamlit/secrets.toml avaimella 'FINGRID_API_KEY'.")
-    st.stop()
-api_key = st.secrets["FINGRID_API_KEY"]
-
-
-# --- Finland Up-Regulation Price (Ylössäätöhinta) Chart ---
-def fetch_fi_upreg_price(start_time, end_time):
-    try:
-        url = (
-            f"https://data.fingrid.fi/api/datasets/244/data?"
-            f"startTime={start_time.isoformat()}Z&endTime={end_time.isoformat()}Z"
-        )
-        headers = {"x-api-key": api_key}
-        response = requests.get(url, headers=headers, timeout=10)
-        response.raise_for_status()
-        data = response.json()
-        if "data" not in data or not data["data"]:
-            return pd.DataFrame()
-        df = pd.DataFrame(data["data"])
-        df["Timestamp"] = pd.to_datetime(df["startTime"]).dt.tz_localize(None)
-        df["PriceEUR"] = df["value"]
-        df = df[["Timestamp", "PriceEUR"]]
-        return df
-    except Exception as e:
-        st.warning(f"Ylössäätöhinnan haku epäonnistui: {e}")
-        return pd.DataFrame()
-
-# Show up-regulation price for the 4 latest prices
-with st.expander("📈 Ylössäätöhinta (Suomi, 4 viimeisintä hintaa)"):
-    # Fetch a bit more data to ensure we get the latest 4
-    upreg_start = datetime.utcnow() - timedelta(hours=2)
-    upreg_end = datetime.utcnow()
-    df_upreg = fetch_fi_upreg_price(upreg_start, upreg_end)
-    if not df_upreg.empty:
-        df_upreg = df_upreg.sort_values("Timestamp").tail(4)
-        fig_upreg = go.Figure()
-        fig_upreg.add_trace(go.Scatter(
-            x=df_upreg["Timestamp"],
-            y=df_upreg["PriceEUR"],
-            mode="lines+markers",
-            name="Ylössäätöhinta (EUR/MWh)",
-            line=dict(color="#2ca02c"),  # green, colorblind-friendly
-            hovertemplate="Aika: %{x}<br>Hinta: %{y:.2f} €/MWh<extra></extra>"
-        ))
-        fig_upreg.update_layout(
-            xaxis_title="Aika (UTC)",
-            yaxis_title="Hinta (EUR/MWh)",
-            height=400,
-            margin=dict(t=40, b=40, l=60, r=40),
-            legend=dict(font=dict(size=14)),
-            title=dict(text="Ylössäätöhinta säätösähkömarkkinoilla (Suomi, 4 viimeisintä hintaa)", font=dict(size=20))
-        )
-        st.plotly_chart(fig_upreg, use_container_width=True)
-    else:
-        st.info("Ei saatavilla olevaa ylössäätöhintadataa.")
 
 import streamlit as st
 import pandas as pd
@@ -63,18 +6,63 @@ from datetime import datetime, timedelta
 import pytz
 import plotly.graph_objects as go
 
+# Set Streamlit theme and page config for a modern look
+st.set_page_config(
+    layout="wide",
+    page_title="Nordic & Finland Frequency",
+    page_icon="📊",
+    initial_sidebar_state="expanded"
+)
+
+# Custom CSS for subtle UI improvements
+st.markdown(
+    """
+    <style>
+    .block-container {
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+    }
+    .sidebar-content {
+        padding-top: 1.5rem;
+    }
+    .stSlider > div[data-baseweb="slider"] {
+        margin-bottom: 1.5rem;
+    }
+    .stCheckbox {
+        margin-bottom: 0.5rem;
+    }
+    .stExpanderHeader {
+        font-size: 1.2rem;
+        font-weight: 600;
+    }
+    .stPlotlyChart {
+        background: #f8fafc;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        padding: 1rem;
+    }
+    .stButton > button {
+        border-radius: 8px;
+        font-weight: 600;
+    }
+    .stCaption {
+        color: #6c757d;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 
 
-# Language selection
+# Language selection and app title
 with st.sidebar:
+    st.markdown("<h2 style='margin-bottom:0.5rem;'>⚡ Power System Frequency</h2>", unsafe_allow_html=True)
     lang = st.selectbox("Kieli / Language", ["Suomi", "English"], index=0)
 
 if lang == "English":
-    st.set_page_config(layout="wide", page_title="Frequency (Norway & Finland)")
-    st.title("📊 Frequency (Norway & Finland)")
+    st.title("📊 Frequency: Nordic & Finland")
 else:
-    st.set_page_config(layout="wide", page_title="Taajuus (Norja & Suomi)")
-    st.title("📊 Taajuus (Norja & Suomi)")
+    st.title("📊 Taajuus: Nordic & Suomi")
 
 # Tarkista API-avain
 if "FINGRID_API_KEY" not in st.secrets:
@@ -100,16 +88,19 @@ if "data_cache" not in st.session_state:
 interval_minutes_map = {"10 min": 10, "30 min": 30, "1 h": 60, "3 h": 180}
 now = datetime.utcnow()
 
-# Sidebar for custom date/time selection and interval slider
+
+# Sidebar for interval selection and refresh settings
 with st.sidebar:
-    st.header("Aikaväli")
+    st.markdown("---")
+    st.subheader("Aikaväli" if lang=="Suomi" else "Interval")
     interval_options = ["10 min", "30 min", "1 h", "3 h"]
     interval_labels = {"10 min": 0, "30 min": 1, "1 h": 2, "3 h": 3}
     interval_idx = interval_labels.get(st.session_state.interval, 2)
     interval_slider = st.slider(
-        "Valitse aikaväli: 0=10min, 1=30min, 2=1h, 3=3h" if lang=="Suomi" else "Select interval: 0=10min, 1=30min, 2=1h, 3=3h",
+        "Valitse aikaväli" if lang=="Suomi" else "Select interval",
         min_value=0, max_value=3, value=interval_idx,
-        step=1
+        step=1,
+        format="%s" % ", ".join(interval_options)
     )
     selected_interval = interval_options[interval_slider]
     st.write(f"Valittu: {selected_interval}" if lang=="Suomi" else f"Selected: {selected_interval}")
@@ -208,10 +199,15 @@ def update_data():
 if 'refresh_interval' not in st.session_state:
     st.session_state.refresh_interval = 60
 
+
 with st.sidebar:
-    st.header("Päivitysasetukset")
-    st.session_state.auto_refresh = st.checkbox("Automaattipäivitys", value=st.session_state.auto_refresh)
-    st.session_state.refresh_interval = st.slider("Päivitysväli (sekuntia)", min_value=10, max_value=600, value=st.session_state.refresh_interval, step=10)
+    st.markdown("---")
+    st.subheader("Päivitysasetukset" if lang=="Suomi" else "Refresh Settings")
+    st.session_state.auto_refresh = st.checkbox("Automaattipäivitys" if lang=="Suomi" else "Auto-refresh", value=st.session_state.auto_refresh)
+    st.session_state.refresh_interval = st.slider(
+        "Päivitysväli (sekuntia)" if lang=="Suomi" else "Refresh interval (seconds)",
+        min_value=10, max_value=600, value=st.session_state.refresh_interval, step=10
+    )
 
 refresh_countdown = None
 if st.session_state.auto_refresh:
@@ -234,8 +230,9 @@ if refresh_countdown is not None and st.session_state.auto_refresh:
     st.sidebar.info(f"Seuraava päivitys: {refresh_countdown} s")
 
 
+st.markdown("---")
 # Ohje/info-osio
-with st.expander("ℹ️ Ohjeet ja tietoa" if lang=="Suomi" else "ℹ️ Help & Info"):
+with st.expander("ℹ️ Ohjeet ja tietoa" if lang=="Suomi" else "ℹ️ Help & Info", expanded=False):
     if lang == "Suomi":
         st.markdown("""
 **Tietolähteet:**
@@ -265,17 +262,24 @@ with st.expander("ℹ️ Ohjeet ja tietoa" if lang=="Suomi" else "ℹ️ Help & 
 - You can hide/show curves and view summary statistics.
         """)
 
-# Näytä kuvaaja
+
+# Show chart
 df_merged = st.session_state.data
 
-# Muunna aikaleimat Suomen aikaan
+# Convert timestamps to Helsinki time
 helsinki_tz = pytz.timezone("Europe/Helsinki")
 df_merged["Timestamp_local"] = df_merged["Timestamp"].dt.tz_localize("UTC").dt.tz_convert(helsinki_tz)
 
-# Piirrä kuvaaja
+# Modern color palette
+color_nordic = "#0072B2"  # blue
+color_finland = "#E69F00"  # orange
+color_low = "#D7263D"      # red
+color_high = "#1B9AAA"     # blue
+
+# Draw chart
 fig = go.Figure()
 
-# Varoitusalueet
+# Warning areas
 x_start = df_merged["Timestamp_local"].min()
 x_end = df_merged["Timestamp_local"].max()
 y_min = df_merged[["FrequencyHz_Suomi", "FrequencyHz_Nordic"]].min().min()
@@ -287,48 +291,50 @@ fig.add_shape(
     type="rect", xref="x", yref="y",
     x0=x_start, x1=x_end,
     y0=y_axis_min, y1=min(49.95, y_axis_max),
-    fillcolor="rgba(255,0,0,0.1)", line_width=0, layer="below"
+    fillcolor="rgba(215,38,61,0.10)", line_width=0, layer="below"
 )
 fig.add_shape(
     type="rect", xref="x", yref="y",
     x0=x_start, x1=x_end,
     y0=max(50.05, y_axis_min), y1=y_axis_max,
-    fillcolor="rgba(0,0,255,0.1)", line_width=0, layer="below"
+    fillcolor="rgba(27,154,170,0.10)", line_width=0, layer="below"
 )
 
-# Nordic taajuus
+# Nordic frequency
 fig.add_trace(go.Scatter(
     x=df_merged["Timestamp_local"],
     y=df_merged["FrequencyHz_Nordic"],
     mode="lines+markers",
     name="Nordic (1 min)",
-    line=dict(color="#1f77b4"),  # blue, colorblind-friendly
+    line=dict(color=color_nordic, width=3),
+    marker=dict(size=7, symbol="circle"),
     visible=True,
     hovertemplate=("Aika: %{x}<br>Nordic: %{y:.3f} Hz<extra></extra>" if lang=="Suomi" else "Time: %{x}<br>Nordic: %{y:.3f} Hz<extra></extra>")
 ))
 
-# Suomen taajuus
+# Finland frequency
 fig.add_trace(go.Scatter(
     x=df_merged["Timestamp_local"],
     y=df_merged["FrequencyHz_Suomi"],
     mode="lines+markers",
     name="Suomi (3 min)" if lang=="Suomi" else "Finland (3 min)",
-    line=dict(color="#ff7f0e"),  # orange, colorblind-friendly
+    line=dict(color=color_finland, width=3),
+    marker=dict(size=7, symbol="diamond"),
     visible=True,
     hovertemplate=("Aika: %{x}<br>Suomi: %{y:.3f} Hz<extra></extra>" if lang=="Suomi" else "Time: %{x}<br>Finland: %{y:.3f} Hz<extra></extra>")
 ))
 
-# Aikajanat
+# Axes and layout
 fig.update_layout(
     xaxis=dict(
-        title=dict(text="Aika (Suomen aika)", font=dict(size=22)),
+        title=dict(text="Aika (Suomen aika)" if lang=="Suomi" else "Time (Helsinki)", font=dict(size=22)),
         tickformat="%H:%M",
         domain=[0.0, 1.0],
         anchor="y",
         tickfont=dict(size=18)
     ),
     xaxis2=dict(
-        title=dict(text="Aika (UTC)", font=dict(size=20)),
+        title=dict(text="Aika (UTC)" if lang=="Suomi" else "Time (UTC)", font=dict(size=20)),
         overlaying="x",
         side="top",
         tickvals=df_merged["Timestamp_local"],
@@ -337,7 +343,7 @@ fig.update_layout(
         tickfont=dict(size=16)
     ),
     yaxis=dict(
-        title=dict(text="Taajuus (Hz)", font=dict(size=22)),
+        title=dict(text="Taajuus (Hz)" if lang=="Suomi" else "Frequency (Hz)", font=dict(size=22)),
         range=[y_axis_min, y_axis_max],
         tickfont=dict(size=18)
     ),
@@ -354,7 +360,9 @@ fig.update_layout(
     title=dict(
         text="Taajuusvertailu: Nordic (1 min) & Suomi (3 min)" if lang=="Suomi" else "Frequency Comparison: Nordic (1 min) & Finland (3 min)",
         font=dict(size=26)
-    )
+    ),
+    plot_bgcolor="#f8fafc",
+    paper_bgcolor="#f8fafc"
 )
 
 
