@@ -56,28 +56,9 @@ with st.sidebar:
     st.write(f"Valittu: {selected_interval}" if lang=="Suomi" else f"Selected: {selected_interval}")
     if selected_interval != st.session_state.interval:
         st.session_state.interval = selected_interval
-    use_custom_range = st.checkbox("Käytä mukautettua aikaväliä", value=False)
-    if use_custom_range:
-        default_start = now - timedelta(hours=1)
-        # Use date_input and time_input to get datetime
-        start_date = st.date_input("Aloituspäivä (UTC)", value=default_start.date(), max_value=now.date())
-        start_time_val = st.time_input("Aloitusaika (UTC)", value=default_start.time())
-        end_date = st.date_input("Lopetuspäivä (UTC)", value=now.date(), min_value=start_date, max_value=now.date())
-        end_time_val = st.time_input("Lopetusaika (UTC)", value=now.time())
-        from datetime import datetime as dt
-        custom_start = dt.combine(start_date, start_time_val)
-        custom_end = dt.combine(end_date, end_time_val)
-        # Clamp to now if needed
-        if custom_end > now:
-            custom_end = now
-        if custom_start > custom_end:
-            custom_start = custom_end
-        start_time = custom_start
-        end_time = custom_end
-    else:
-        interval_minutes = interval_minutes_map[st.session_state.interval]
-        start_time = now - timedelta(minutes=interval_minutes)
-        end_time = now
+    interval_minutes = interval_minutes_map[st.session_state.interval]
+    start_time = now - timedelta(minutes=interval_minutes)
+    end_time = now
 
 # Hae Norjan taajuusdata
 def fetch_nordic_data():
