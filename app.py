@@ -219,8 +219,8 @@ fig = go.Figure()
 # Varoitusalueet
 x_start = df_merged["Timestamp_local"].min()
 x_end = df_merged["Timestamp_local"].max()
-y_min = df_merged[["FrequencyHz_Suomi", "FrequencyHz_Norja"]].min().min()
-y_max = df_merged[["FrequencyHz_Suomi", "FrequencyHz_Norja"]].max().max()
+y_min = df_merged[["FrequencyHz_Suomi", "FrequencyHz_Nordic"]].min().min()
+y_max = df_merged[["FrequencyHz_Suomi", "FrequencyHz_Nordic"]].max().max()
 y_axis_min = y_min - 0.05
 y_axis_max = y_max + 0.05
 
@@ -293,7 +293,7 @@ fig.update_layout(
         font=dict(size=18)
     ),
     title=dict(
-        text="Taajuusvertailu: Norja (1 min) & Suomi (3 min)",
+        text="Taajuusvertailu: Nordic (1 min) & Suomi (3 min)" if lang=="Suomi" else "Frequency Comparison: Nordic (1 min) & Finland (3 min)",
         font=dict(size=26)
     )
 )
