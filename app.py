@@ -48,6 +48,7 @@ with st.expander("📈 Ylössäätöhinta (Suomi, 4 viimeisintä hintaa)"):
         st.plotly_chart(fig_upreg, use_container_width=True)
     else:
         st.info("Ei saatavilla olevaa ylössäätöhintadataa.")
+
 import streamlit as st
 import pandas as pd
 import requests
@@ -55,6 +56,11 @@ from datetime import datetime, timedelta
 import pytz
 import plotly.graph_objects as go
 
+# Tarkista API-avain heti alussa
+if "FINGRID_API_KEY" not in st.secrets:
+    st.error("Fingridin API-avainta ei ole määritetty. Lisää se tiedostoon .streamlit/secrets.toml avaimella 'FINGRID_API_KEY'.")
+    st.stop()
+api_key = st.secrets["FINGRID_API_KEY"]
 
 # Language selection
 with st.sidebar:
