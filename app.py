@@ -86,10 +86,10 @@ def fetch_nordic_data():
         mask = (df_resampled["Timestamp"] >= start_time) & (df_resampled["Timestamp"] <= end_time)
         return df_resampled.loc[mask].reset_index(drop=True)
     except requests.exceptions.Timeout:
-    st.error("Nordicin datan haku aikakatkaistiin. Tarkista verkkoyhteys ja yritä uudelleen." if lang=="Suomi" else "Nordic frequency fetch timed out. Check your connection and try again.")
+        st.error("Nordicin datan haku aikakatkaistiin. Tarkista verkkoyhteys ja yritä uudelleen." if lang=="Suomi" else "Nordic frequency fetch timed out. Check your connection and try again.")
         return pd.DataFrame()
     except Exception as e:
-    st.error((f"Nordicin datan haussa tapahtui virhe: {e}. Yritä päivittää sivu tai tarkista API-palvelun tila." if lang=="Suomi" else f"Error fetching Nordic frequency: {e}. Try refreshing or check the API status."))
+        st.error((f"Nordicin datan haussa tapahtui virhe: {e}. Yritä päivittää sivu tai tarkista API-palvelun tila." if lang=="Suomi" else f"Error fetching Nordic frequency: {e}. Try refreshing or check the API status."))
         return pd.DataFrame()
 
 # Hae Suomen taajuusdata
