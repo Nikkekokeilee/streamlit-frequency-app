@@ -14,6 +14,60 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Set dark theme via custom CSS (Streamlit's built-in dark theme is not programmatically settable, so override colors)
+st.markdown(
+    """
+    <style>
+    html, body, .block-container, .stApp {
+        background-color: #18191A !important;
+        color: #F5F6FA !important;
+    }
+    .sidebar-content, .css-1d391kg, .css-1lcbmhc, .stSidebar {
+        background-color: #23272F !important;
+        color: #F5F6FA !important;
+    }
+    .stSlider > div[data-baseweb="slider"] {
+        margin-bottom: 1.5rem;
+    }
+    .stCheckbox {
+        margin-bottom: 0.5rem;
+    }
+    .stExpanderHeader {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: #F5F6FA !important;
+    }
+    .stPlotlyChart {
+        background: #23272F !important;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+        padding: 1rem;
+    }
+    .stButton > button {
+        border-radius: 8px;
+        font-weight: 600;
+        background: #23272F;
+        color: #F5F6FA;
+        border: 1px solid #444;
+    }
+    .stButton > button:hover {
+        background: #333;
+        color: #fff;
+    }
+    .stCaption {
+        color: #A0A0A0;
+    }
+    .stMarkdown, .stText, .stSubheader, .stHeader, .stTitle {
+        color: #F5F6FA !important;
+    }
+    .st-bb, .st-cq, .st-cv, .st-cw, .st-cx, .st-cy, .st-cz, .st-da, .st-db, .st-dc, .st-dd, .st-de, .st-df, .st-dg, .st-dh, .st-di, .st-dj, .st-dk, .st-dl, .st-dm, .st-dn, .st-do, .st-dp, .st-dq, .st-dr, .st-ds, .st-dt, .st-du, .st-dv, .st-dw, .st-dx, .st-dy, .st-dz, .st-e0, .st-e1, .st-e2, .st-e3, .st-e4, .st-e5, .st-e6, .st-e7, .st-e8, .st-e9, .st-ea, .st-eb, .st-ec, .st-ed, .st-ee, .st-ef, .st-eg, .st-eh, .st-ei, .st-ej, .st-ek, .st-el, .st-em, .st-en, .st-eo, .st-ep, .st-eq, .st-er, .st-es, .st-et, .st-eu, .st-ev, .st-ew, .st-ex, .st-ey, .st-ez {
+        background-color: #23272F !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
 # Custom CSS for subtle UI improvements
 st.markdown(
     """
@@ -270,11 +324,12 @@ df_merged = st.session_state.data
 helsinki_tz = pytz.timezone("Europe/Helsinki")
 df_merged["Timestamp_local"] = df_merged["Timestamp"].dt.tz_localize("UTC").dt.tz_convert(helsinki_tz)
 
-# Modern color palette
-color_nordic = "#0072B2"  # blue
-color_finland = "#E69F00"  # orange
-color_low = "#D7263D"      # red
-color_high = "#1B9AAA"     # blue
+
+# Modern color palette for dark theme
+color_nordic = "#4FC3F7"   # light blue
+color_finland = "#FFD54F"  # yellow
+color_low = "#FF5252"      # red
+color_high = "#42A5F5"     # blue
 
 # Draw chart
 fig = go.Figure()
@@ -291,13 +346,13 @@ fig.add_shape(
     type="rect", xref="x", yref="y",
     x0=x_start, x1=x_end,
     y0=y_axis_min, y1=min(49.95, y_axis_max),
-    fillcolor="rgba(215,38,61,0.10)", line_width=0, layer="below"
+    fillcolor="rgba(255,82,82,0.13)", line_width=0, layer="below"
 )
 fig.add_shape(
     type="rect", xref="x", yref="y",
     x0=x_start, x1=x_end,
     y0=max(50.05, y_axis_min), y1=y_axis_max,
-    fillcolor="rgba(27,154,170,0.10)", line_width=0, layer="below"
+    fillcolor="rgba(66,165,245,0.13)", line_width=0, layer="below"
 )
 
 # Nordic frequency
@@ -331,7 +386,8 @@ fig.update_layout(
         tickformat="%H:%M",
         domain=[0.0, 1.0],
         anchor="y",
-        tickfont=dict(size=18)
+        tickfont=dict(size=18),
+        fixedrange=False  # allow zoom/pan
     ),
     xaxis2=dict(
         title=dict(text="Aika (UTC)" if lang=="Suomi" else "Time (UTC)", font=dict(size=20)),
@@ -340,13 +396,16 @@ fig.update_layout(
         tickvals=df_merged["Timestamp_local"],
         ticktext=df_merged["Timestamp"].dt.strftime("%H:%M"),
         showgrid=False,
-        tickfont=dict(size=16)
+        tickfont=dict(size=16),
+        fixedrange=False
     ),
     yaxis=dict(
         title=dict(text="Taajuus (Hz)" if lang=="Suomi" else "Frequency (Hz)", font=dict(size=22)),
         range=[y_axis_min, y_axis_max],
-        tickfont=dict(size=18)
+        tickfont=dict(size=18),
+        fixedrange=False
     ),
+    dragmode="zoom",  # allow box zoom (both axes)
     height=600,
     margin=dict(t=60, b=40, l=60, r=40),
     legend=dict(
@@ -361,8 +420,8 @@ fig.update_layout(
         text="Taajuusvertailu: Nordic (1 min) & Suomi (3 min)" if lang=="Suomi" else "Frequency Comparison: Nordic (1 min) & Finland (3 min)",
         font=dict(size=26)
     ),
-    plot_bgcolor="#f8fafc",
-    paper_bgcolor="#f8fafc"
+    plot_bgcolor="#23272F",
+    paper_bgcolor="#23272F"
 )
 
 
