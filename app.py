@@ -398,7 +398,7 @@ fig.update_layout(
         fixedrange=False
     ),
     dragmode="zoom",  # allow box zoom (both axes)
-    height=800,
+    height=1100,
     margin=dict(t=60, b=40, l=60, r=40),
     legend=dict(
         orientation="h",
