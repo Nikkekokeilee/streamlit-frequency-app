@@ -154,8 +154,8 @@ def fetch_finnish_data():
         return pd.DataFrame()
 
 # Päivitä data
-def update_data():
-    cache_key = (str(start_time), str(end_time))
+def update_data(include_regulation=False):
+    cache_key = (str(start_time), str(end_time), include_regulation)
     if cache_key in st.session_state.data_cache:
         st.session_state.data = st.session_state.data_cache[cache_key]
         st.session_state.last_updated = datetime.utcnow()
@@ -164,7 +164,6 @@ def update_data():
     with st.spinner("Haetaan dataa..."):
         df_nordic = fetch_nordic_data()
         df_finnish = fetch_finnish_data()
-        df_reg_fi = fetch_finnish_regulation_power()
         if df_nordic.empty or df_finnish.empty:
             st.warning("Datan haku epäonnistui tai dataa ei löytynyt. Tarkista yhteys ja yritä uudelleen.")
             st.session_state.data = None
@@ -176,14 +175,16 @@ def update_data():
             direction="nearest",
             suffixes=("_Suomi", "_Nordic")
         )
-        # Merge regulation power (nearest)
-        if not df_reg_fi.empty:
-            df_merged = pd.merge_asof(
-                df_merged.sort_values("Timestamp"),
-                df_reg_fi.sort_values("Timestamp"),
-                on="Timestamp",
-                direction="nearest"
-            )
+        # Only fetch regulation power if requested
+        if include_regulation:
+            df_reg_fi = fetch_finnish_regulation_power()
+            if not df_reg_fi.empty:
+                df_merged = pd.merge_asof(
+                    df_merged.sort_values("Timestamp"),
+                    df_reg_fi.sort_values("Timestamp"),
+                    on="Timestamp",
+                    direction="nearest"
+                )
         st.session_state.data = df_merged
         st.session_state.data_cache[cache_key] = df_merged
         st.session_state.last_updated = datetime.utcnow()
@@ -207,12 +208,24 @@ if st.session_state.auto_refresh:
     if elapsed > interval:
         update_data()
 
-# Haetaan data tarvittaessa ja lisää retry-nappi
+
+
+# Haetaan data tarvittaessa ja lisää retry-nappi, mutta estä liian tiheä päivitys
+MIN_REFRESH_INTERVAL = 30  # seconds
+now = datetime.utcnow()
+can_refresh = (now - st.session_state.last_fetch_time).total_seconds() > MIN_REFRESH_INTERVAL
 if st.session_state.data is None:
-    update_data()
+    update_data(include_regulation=False)
     if st.session_state.data is None:
         if st.button("Yritä hakea data uudelleen"):
-            update_data()
+            if can_refresh:
+                update_data(include_regulation=False)
+            else:
+                st.warning("Päivitystä yritettiin liian nopeasti. Odota hetki ennen uutta yritystä." if lang=="Suomi" else "Refresh attempted too soon. Please wait before trying again.")
+
+# Button to fetch regulation power data manually
+if st.button("Hae säätösähkö (manuaalinen)" if lang=="Suomi" else "Fetch regulation power (manual)"):
+    update_data(include_regulation=True)
 
 # Näytä päivityslaskuri
 if refresh_countdown is not None and st.session_state.auto_refresh:
