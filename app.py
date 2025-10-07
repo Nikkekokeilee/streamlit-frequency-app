@@ -38,12 +38,25 @@ if "data_cache" not in st.session_state:
     st.session_state.data_cache = {}
 
 # Aikaväli ja mukautettu valinta
-interval_minutes_map = {"10 min": 10, "30 min": 30, "1 h": 60}
+interval_minutes_map = {"10 min": 10, "30 min": 30, "1 h": 60, "3 h": 180}
 now = datetime.utcnow()
 
-# Sidebar for custom date/time selection
+# Sidebar for custom date/time selection and interval slider
 with st.sidebar:
     st.header("Aikaväli")
+    interval_options = ["10 min", "30 min", "1 h", "3 h"]
+    interval_labels = {"10 min": 0, "30 min": 1, "1 h": 2, "3 h": 3}
+    interval_idx = interval_labels.get(st.session_state.interval, 2)
+    interval_slider = st.slider(
+        "Valitse aikaväli" if lang=="Suomi" else "Select interval",
+        min_value=0, max_value=3, value=interval_idx,
+        format="%d",
+        step=1,
+        labels=interval_options
+    )
+    selected_interval = interval_options[interval_slider]
+    if selected_interval != st.session_state.interval:
+        st.session_state.interval = selected_interval
     use_custom_range = st.checkbox("Käytä mukautettua aikaväliä", value=False)
     if use_custom_range:
         default_start = now - timedelta(hours=1)
@@ -340,16 +353,4 @@ with st.expander("📈 Yhteenveto valitulta aikaväliltä" if lang=="Suomi" else
 if st.session_state.last_updated:
     st.caption(f"Viimeisin päivitys: {st.session_state.last_updated.strftime('%H:%M:%S')} UTC")
 
-# Asetukset alasvetovalikossa
-with st.expander("⚙️ Asetukset" if lang=="Suomi" else "⚙️ Settings"):
-    if not use_custom_range:
-        selected_interval = st.selectbox(
-            "Valitse aikaväli" if lang=="Suomi" else "Select interval",
-            ["10 min", "30 min", "1 h"],
-            index=["10 min", "30 min", "1 h"].index(st.session_state.interval))
-        if selected_interval != st.session_state.interval:
-            st.session_state.interval = selected_interval
-            update_data()
-
-    if st.button("Päivitä nyt" if lang=="Suomi" else "Update now"):
-        update_data()
+# Remove settings menu (no replacement needed)
