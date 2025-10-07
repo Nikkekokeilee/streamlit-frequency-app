@@ -21,17 +21,17 @@ st.markdown(
     <style>
     html, body, .block-container, .stApp {
         background-color: #18191A !important;
-        color: #F5F6FA !important;
+        color: #FAFAFA !important;
     }
     /* Top header and main menu bar */
     header[data-testid="stHeader"], .st-emotion-cache-18ni7ap, .st-emotion-cache-1avcm0n {
         background: #18191A !important;
-        color: #F5F6FA !important;
+        color: #FAFAFA !important;
         border-bottom: 1px solid #23272F !important;
     }
     .sidebar-content, .css-1d391kg, .css-1lcbmhc, .stSidebar {
         background-color: #23272F !important;
-        color: #F5F6FA !important;
+        color: #FAFAFA !important;
     }
     .stSlider > div[data-baseweb="slider"] {
         margin-bottom: 1.5rem;
@@ -42,7 +42,7 @@ st.markdown(
     .stExpanderHeader {
         font-size: 1.2rem;
         font-weight: 800;
-        color: #F5F6FA !important;
+        color: #FAFAFA !important;
         letter-spacing: 0.01em;
     }
     .stPlotlyChart {
@@ -55,7 +55,7 @@ st.markdown(
         border-radius: 8px;
         font-weight: 800;
         background: #23272F;
-        color: #F5F6FA;
+        color: #FAFAFA;
         border: 1px solid #888;
     }
     .stButton > button:hover {
@@ -63,12 +63,12 @@ st.markdown(
         color: #fff;
     }
     .stCaption {
-        color: #B0B0B0;
+        color: #E0E0E0;
         font-size: 1.08em;
         font-weight: 600;
     }
     .stMarkdown, .stText, .stSubheader, .stHeader, .stTitle, .stDataFrame, .stTable, .stExpanderContent, .stAlert, .stException, .stWarning, .stInfo, .stSuccess, .stError {
-        color: #F5F6FA !important;
+        color: #FAFAFA !important;
         font-weight: 600;
         background: transparent !important;
     }
@@ -81,7 +81,7 @@ st.markdown(
     }
     .st-bb, .st-cq, .st-cv, .st-cw, .st-cx, .st-cy, .st-cz, .st-da, .st-db, .st-dc, .st-dd, .st-de, .st-df, .st-dg, .st-dh, .st-di, .st-dj, .st-dk, .st-dl, .st-dm, .st-dn, .st-do, .st-dp, .st-dq, .st-dr, .st-ds, .st-dt, .st-du, .st-dv, .st-dw, .st-dx, .st-dy, .st-dz, .st-e0, .st-e1, .st-e2, .st-e3, .st-e4, .st-e5, .st-e6, .st-e7, .st-e8, .st-e9, .st-ea, .st-eb, .st-ec, .st-ed, .st-ee, .st-ef, .st-eg, .st-eh, .st-ei, .st-ej, .st-ek, .st-el, .st-em, .st-en, .st-eo, .st-ep, .st-eq, .st-er, .st-es, .st-et, .st-eu, .st-ev, .st-ew, .st-ex, .st-ey, .st-ez {
         background-color: #23272F !important;
-        color: #F5F6FA !important;
+        color: #FAFAFA !important;
     }
     </style>
     """,
@@ -435,14 +435,23 @@ st.plotly_chart(
     }
 )
 
-# Custom CSS to move and enlarge the Plotly modebar
+# Custom CSS to move and enlarge the Plotly modebar above the chart, right-aligned
 st.markdown(
     """
     <style>
+    .stPlotlyChart {
+        position: relative;
+    }
     .modebar {
-        top: 40px !important;
-        right: 40px !important;
+        position: absolute !important;
+        top: -60px !important;
+        right: 0 !important;
+        left: auto !important;
+        margin-right: 0 !important;
+        margin-top: 0 !important;
         zoom: 1.35;
+        background: transparent !important;
+        box-shadow: none !important;
     }
     </style>
     """,
