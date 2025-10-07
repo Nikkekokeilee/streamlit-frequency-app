@@ -14,6 +14,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+
 # Set dark theme via custom CSS (Streamlit's built-in dark theme is not programmatically settable, so override colors)
 st.markdown(
     """
@@ -34,31 +35,41 @@ st.markdown(
     }
     .stExpanderHeader {
         font-size: 1.2rem;
-        font-weight: 600;
+        font-weight: 700;
         color: #F5F6FA !important;
+        letter-spacing: 0.01em;
     }
     .stPlotlyChart {
         background: #23272F !important;
         border-radius: 12px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.18);
         padding: 1rem;
     }
     .stButton > button {
         border-radius: 8px;
-        font-weight: 600;
+        font-weight: 700;
         background: #23272F;
         color: #F5F6FA;
-        border: 1px solid #444;
+        border: 1px solid #888;
     }
     .stButton > button:hover {
         background: #333;
         color: #fff;
     }
     .stCaption {
-        color: #A0A0A0;
+        color: #B0B0B0;
+        font-size: 1.05em;
     }
-    .stMarkdown, .stText, .stSubheader, .stHeader, .stTitle {
+    .stMarkdown, .stText, .stSubheader, .stHeader, .stTitle, .stDataFrame, .stTable, .stExpanderContent {
         color: #F5F6FA !important;
+        font-weight: 500;
+    }
+    .stDataFrame, .stTable {
+        background: #23272F !important;
+        border-radius: 8px;
+    }
+    .stExpanderContent {
+        background: #23272F !important;
     }
     .st-bb, .st-cq, .st-cv, .st-cw, .st-cx, .st-cy, .st-cz, .st-da, .st-db, .st-dc, .st-dd, .st-de, .st-df, .st-dg, .st-dh, .st-di, .st-dj, .st-dk, .st-dl, .st-dm, .st-dn, .st-do, .st-dp, .st-dq, .st-dr, .st-ds, .st-dt, .st-du, .st-dv, .st-dw, .st-dx, .st-dy, .st-dz, .st-e0, .st-e1, .st-e2, .st-e3, .st-e4, .st-e5, .st-e6, .st-e7, .st-e8, .st-e9, .st-ea, .st-eb, .st-ec, .st-ed, .st-ee, .st-ef, .st-eg, .st-eh, .st-ei, .st-ej, .st-ek, .st-el, .st-em, .st-en, .st-eo, .st-ep, .st-eq, .st-er, .st-es, .st-et, .st-eu, .st-ev, .st-ew, .st-ex, .st-ey, .st-ez {
         background-color: #23272F !important;
@@ -68,44 +79,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# Custom CSS for subtle UI improvements
-st.markdown(
-    """
-    <style>
-    .block-container {
-        padding-top: 2rem;
-        padding-bottom: 2rem;
-    }
-    .sidebar-content {
-        padding-top: 1.5rem;
-    }
-    .stSlider > div[data-baseweb="slider"] {
-        margin-bottom: 1.5rem;
-    }
-    .stCheckbox {
-        margin-bottom: 0.5rem;
-    }
-    .stExpanderHeader {
-        font-size: 1.2rem;
-        font-weight: 600;
-    }
-    .stPlotlyChart {
-        background: #f8fafc;
-        border-radius: 12px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-        padding: 1rem;
-    }
-    .stButton > button {
-        border-radius: 8px;
-        font-weight: 600;
-    }
-    .stCaption {
-        color: #6c757d;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
+# Remove conflicting light theme CSS
 
 
 # Language selection and app title
