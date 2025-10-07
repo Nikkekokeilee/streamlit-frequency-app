@@ -1,3 +1,10 @@
+# Tarkista API-avain heti alussa
+if "FINGRID_API_KEY" not in st.secrets:
+    st.error("Fingridin API-avainta ei ole määritetty. Lisää se tiedostoon .streamlit/secrets.toml avaimella 'FINGRID_API_KEY'.")
+    st.stop()
+api_key = st.secrets["FINGRID_API_KEY"]
+
+
 # --- Finland Up-Regulation Price (Ylössäätöhinta) Chart ---
 def fetch_fi_upreg_price(start_time, end_time):
     try:
@@ -56,11 +63,7 @@ from datetime import datetime, timedelta
 import pytz
 import plotly.graph_objects as go
 
-# Tarkista API-avain heti alussa
-if "FINGRID_API_KEY" not in st.secrets:
-    st.error("Fingridin API-avainta ei ole määritetty. Lisää se tiedostoon .streamlit/secrets.toml avaimella 'FINGRID_API_KEY'.")
-    st.stop()
-api_key = st.secrets["FINGRID_API_KEY"]
+
 
 # Language selection
 with st.sidebar:
