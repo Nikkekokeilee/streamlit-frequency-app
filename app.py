@@ -15,83 +15,177 @@ st.set_page_config(
 )
 
 
-# Set dark theme via custom CSS (Streamlit's built-in dark theme is not programmatically settable, so override colors)
+
+# Theme selection (light/dark)
+with st.sidebar:
+    st.markdown("---")
+    theme = st.radio("Teema / Theme", ["Tumma / Dark", "Vaalea / Light"], index=0, key="theme_select")
+    st.session_state["theme"] = theme
+
+# Theme colors
+if st.session_state.get("theme", "Tumma / Dark") == "Vaalea / Light":
+    bg = "#F5F6FA"
+    fg = "#18191A"
+    sidebar_bg = "#E9ECF1"
+    plot_bg = "#F5F6FA"
+    plot_paper = "#F5F6FA"
+    color_nordic = "#1976D2"
+    color_finland = "#FFA000"
+    color_low = "#FF5252"
+    color_high = "#1976D2"
+    caption = "#444"
+else:
+    bg = "#18191A"
+    fg = "#FAFAFA"
+    sidebar_bg = "#23272F"
+    plot_bg = "#23272F"
+    plot_paper = "#23272F"
+    color_nordic = "#4FC3F7"
+    color_finland = "#FFD54F"
+    color_low = "#FF5252"
+    color_high = "#42A5F5"
+    caption = "#E0E0E0"
+
+# Animated/smooth loading and hover effects in CSS
 st.markdown(
-    """
+    f"""
     <style>
-    html, body, .block-container, .stApp {
-        background-color: #18191A !important;
-        color: #FAFAFA !important;
-    }
-    /* Top header and main menu bar */
-    header[data-testid="stHeader"], .st-emotion-cache-18ni7ap, .st-emotion-cache-1avcm0n {
-        background: #18191A !important;
-        color: #FAFAFA !important;
+    html, body, .block-container, .stApp {{
+        background-color: {bg} !important;
+        color: {fg} !important;
+        transition: background 0.5s, color 0.5s;
+    }}
+    header[data-testid="stHeader"], .st-emotion-cache-18ni7ap, .st-emotion-cache-1avcm0n {{
+        background: {bg} !important;
+        color: {fg} !important;
         border-bottom: 1px solid #23272F !important;
-    }
-    .sidebar-content, .css-1d391kg, .css-1lcbmhc, .stSidebar {
-        background-color: #23272F !important;
-        color: #FAFAFA !important;
-    }
-    /* SLIDER LABELS, VALUES, TICKS */
-    .stSlider label, .stSlider .css-1y4p8pa, .stSlider .css-1y4p8pa span, .stSlider .css-1y4p8pa div, .stSlider .css-1y4p8pa input, .stSlider .css-1y4p8pa .css-1n76uvr, .stSlider .css-1n76uvr, .stSlider .css-1n76uvr span, .stSlider .css-1n76uvr div, .stSlider .css-1n76uvr input {
-        color: #FAFAFA !important;
-    }
-    .stSlider > div[data-baseweb="slider"] {
+        transition: background 0.5s, color 0.5s;
+    }}
+    .sidebar-content, .css-1d391kg, .css-1lcbmhc, .stSidebar {{
+        background-color: {sidebar_bg} !important;
+        color: {fg} !important;
+        transition: background 0.5s, color 0.5s;
+    }}
+    .stSlider label, .stSlider .css-1y4p8pa, .stSlider .css-1y4p8pa span, .stSlider .css-1y4p8pa div, .stSlider .css-1y4p8pa input, .stSlider .css-1y4p8pa .css-1n76uvr, .stSlider .css-1n76uvr, .stSlider .css-1n76uvr span, .stSlider .css-1n76uvr div, .stSlider .css-1n76uvr input {{
+        color: {fg} !important;
+    }}
+    .stSlider > div[data-baseweb="slider"] {{
         margin-bottom: 1.5rem;
-    }
-    .stSlider .rc-slider-mark-text, .stSlider .rc-slider-value, .stSlider .rc-slider-tooltip-inner {
-        color: #FAFAFA !important;
-        background: #23272F !important;
+    }}
+    .stSlider .rc-slider-mark-text, .stSlider .rc-slider-value, .stSlider .rc-slider-tooltip-inner {{
+        color: {fg} !important;
+        background: {sidebar_bg} !important;
         font-weight: 700;
-    }
-    .stCheckbox {
+    }}
+    .stCheckbox {{
         margin-bottom: 0.5rem;
-    }
-    .stExpanderHeader {
+    }}
+    .stExpanderHeader {{
         font-size: 1.2rem;
         font-weight: 800;
-        color: #FAFAFA !important;
+        color: {fg} !important;
         letter-spacing: 0.01em;
-    }
-    .stPlotlyChart {
-        background: #23272F !important;
+        transition: color 0.5s;
+    }}
+    .stPlotlyChart {{
+        background: {plot_bg} !important;
         border-radius: 12px;
         box-shadow: 0 2px 8px rgba(0,0,0,0.18);
         padding: 1rem;
-    }
-    .stButton > button {
+        transition: background 0.5s;
+        opacity: 0;
+        animation: fadein 0.7s forwards;
+    }}
+    @keyframes fadein {{
+        from {{ opacity: 0; }}
+        to {{ opacity: 1; }}
+    }}
+    .stButton > button {{
         border-radius: 8px;
         font-weight: 800;
-        background: #23272F;
-        color: #FAFAFA;
+        background: {sidebar_bg};
+        color: {fg};
         border: 1px solid #888;
-    }
-    .stButton > button:hover {
+        transition: background 0.3s, color 0.3s;
+    }}
+    .stButton > button:hover {{
         background: #333;
         color: #fff;
-    }
-    .stCaption {
-        color: #E0E0E0;
+        box-shadow: 0 0 8px #888;
+    }}
+    .stCaption {{
+        color: {caption};
         font-size: 1.08em;
         font-weight: 600;
-    }
-    .stMarkdown, .stText, .stSubheader, .stHeader, .stTitle, .stDataFrame, .stTable, .stExpanderContent, .stAlert, .stException, .stWarning, .stInfo, .stSuccess, .stError {
-        color: #FAFAFA !important;
+        transition: color 0.5s;
+    }}
+    .stMarkdown, .stText, .stSubheader, .stHeader, .stTitle, .stDataFrame, .stTable, .stExpanderContent, .stAlert, .stException, .stWarning, .stInfo, .stSuccess, .stError {{
+        color: {fg} !important;
         font-weight: 600;
         background: transparent !important;
-    }
-    .stDataFrame, .stTable {
-        background: #23272F !important;
+        transition: color 0.5s;
+    }}
+    .stDataFrame, .stTable {{
+        background: {sidebar_bg} !important;
         border-radius: 8px;
-    }
-    .stExpanderContent {
-        background: #23272F !important;
-    }
-    .st-bb, .st-cq, .st-cv, .st-cw, .st-cx, .st-cy, .st-cz, .st-da, .st-db, .st-dc, .st-dd, .st-de, .st-df, .st-dg, .st-dh, .st-di, .st-dj, .st-dk, .st-dl, .st-dm, .st-dn, .st-do, .st-dp, .st-dq, .st-dr, .st-ds, .st-dt, .st-du, .st-dv, .st-dw, .st-dx, .st-dy, .st-dz, .st-e0, .st-e1, .st-e2, .st-e3, .st-e4, .st-e5, .st-e6, .st-e7, .st-e8, .st-e9, .st-ea, .st-eb, .st-ec, .st-ed, .st-ee, .st-ef, .st-eg, .st-eh, .st-ei, .st-ej, .st-ek, .st-el, .st-em, .st-en, .st-eo, .st-ep, .st-eq, .st-er, .st-es, .st-et, .st-eu, .st-ev, .st-ew, .st-ex, .st-ey, .st-ez {
-        background-color: #23272F !important;
-        color: #FAFAFA !important;
-    }
+    }}
+    .stExpanderContent {{
+        background: {sidebar_bg} !important;
+    }}
+    .st-bb, .st-cq, .st-cv, .st-cw, .st-cx, .st-cy, .st-cz, .st-da, .st-db, .st-dc, .st-dd, .st-de, .st-df, .st-dg, .st-dh, .st-di, .st-dj, .st-dk, .st-dl, .st-dm, .st-dn, .st-do, .st-dp, .st-dq, .st-dr, .st-ds, .st-dt, .st-du, .st-dv, .st-dw, .st-dx, .st-dy, .st-dz, .st-e0, .st-e1, .st-e2, .st-e3, .st-e4, .st-e5, .st-e6, .st-e7, .st-e8, .st-e9, .st-ea, .st-eb, .st-ec, .st-ed, .st-ee, .st-ef, .st-eg, .st-eh, .st-ei, .st-ej, .st-ek, .st-el, .st-em, .st-en, .st-eo, .st-ep, .st-eq, .st-er, .st-es, .st-et, .st-eu, .st-ev, .st-ew, .st-ex, .st-ey, .st-ez {{
+        background-color: {sidebar_bg} !important;
+        color: {fg} !important;
+    }}
+    /* RESPONSIVE DESIGN */
+    @media (max-width: 900px) {{
+        html, body, .block-container, .stApp {{
+            font-size: 15px !important;
+        }}
+        .stPlotlyChart {{
+            padding: 0.5rem !important;
+        }}
+        .stExpanderHeader {{
+            font-size: 1.05rem !important;
+        }}
+        .stButton > button {{
+            font-size: 1rem !important;
+        }}
+        .stSidebar, .sidebar-content, .css-1d391kg, .css-1lcbmhc {{
+            font-size: 15px !important;
+        }}
+    }}
+    @media (max-width: 600px) {{
+        html, body, .block-container, .stApp {{
+            font-size: 13px !important;
+        }}
+        .stPlotlyChart {{
+            padding: 0.2rem !important;
+        }}
+        .stExpanderHeader {{
+            font-size: 0.95rem !important;
+        }}
+        .stButton > button {{
+            font-size: 0.95rem !important;
+        }}
+        .stSidebar, .sidebar-content, .css-1d391kg, .css-1lcbmhc {{
+            font-size: 13px !important;
+        }}
+        .stPlotlyChart {{
+            min-height: 350px !important;
+            height: 350px !important;
+        }}
+    }}
+    /* Hover effect for expander headers and chart */
+    .stExpanderHeader:hover {{
+        color: #FFEB3B !important;
+        cursor: pointer;
+        text-shadow: 0 0 8px #FFEB3B44;
+        transition: color 0.2s, text-shadow 0.2s;
+    }}
+    .stPlotlyChart:hover {{
+        box-shadow: 0 0 24px #1976D2AA;
+        transition: box-shadow 0.3s;
+    }}
     </style>
     """,
     unsafe_allow_html=True
@@ -317,11 +411,8 @@ helsinki_tz = pytz.timezone("Europe/Helsinki")
 df_merged["Timestamp_local"] = df_merged["Timestamp"].dt.tz_localize("UTC").dt.tz_convert(helsinki_tz)
 
 
-# Modern color palette for dark theme
-color_nordic = "#4FC3F7"   # light blue
-color_finland = "#FFD54F"  # yellow
-color_low = "#FF5252"      # red
-color_high = "#42A5F5"     # blue
+
+# Colors are now set by theme selection above
 
 # Draw chart
 fig = go.Figure()
@@ -372,6 +463,8 @@ fig.add_trace(go.Scatter(
 ))
 
 # Axes and layout
+import streamlit as st
+# ...existing code...
 fig.update_layout(
     xaxis=dict(
         title=dict(text="Aika (Suomen aika)" if lang=="Suomi" else "Time (Helsinki)", font=dict(size=22)),
@@ -412,8 +505,8 @@ fig.update_layout(
         text="Taajuusvertailu: Nordic (1 min) & Suomi (3 min)" if lang=="Suomi" else "Frequency Comparison: Nordic (1 min) & Finland (3 min)",
         font=dict(size=26)
     ),
-    plot_bgcolor="#23272F",
-    paper_bgcolor="#23272F"
+    plot_bgcolor=plot_bg,
+    paper_bgcolor=plot_paper
 )
 
 
